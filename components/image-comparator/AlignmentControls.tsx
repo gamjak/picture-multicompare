@@ -15,12 +15,12 @@ import { Button } from '@/components/ui/button';
 import { SLOT_IDS } from './files';
 import type {
   AlignmentEntry,
-  ImageItem,
   ManualAlignmentSession,
+  StageImage,
 } from './types';
 
 type AlignmentControlsProps = {
-  images: ImageItem[];
+  images: StageImage[];
   enabled: boolean;
   showPoints: boolean;
   referenceId: string | null;
@@ -35,7 +35,7 @@ type AlignmentControlsProps = {
   onApplyManual: () => boolean;
 };
 
-const orderedImages = (images: ImageItem[]) =>
+const orderedImages = (images: StageImage[]) =>
   [...images].sort(
     (left, right) => SLOT_IDS.indexOf(left.slot) - SLOT_IDS.indexOf(right.slot),
   );
@@ -141,7 +141,7 @@ export function AlignmentControls({
           </span>
           <span className="switch-copy">
             <strong>Automatisch ausrichten</strong>
-            <small>3 lokale Merkmalspunkte · A ist Referenz</small>
+            <small>3 lokale Merkmalspunkte · A ist immer Referenz</small>
           </span>
         </label>
 

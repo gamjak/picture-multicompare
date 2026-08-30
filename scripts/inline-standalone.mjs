@@ -15,7 +15,7 @@ const scriptMatch = sourceHtml.match(
 
 if (!stylesheetMatch || !scriptMatch) {
   throw new Error(
-    'Die gebauten Vierblick-Dateien konnten nicht eingebettet werden.',
+    'Die gebauten Picture-MultiCompare-Dateien konnten nicht eingebettet werden.',
   );
 }
 
@@ -38,11 +38,13 @@ if (
   standaloneHtml.includes(stylesheetMatch[0]) ||
   standaloneHtml.includes(scriptMatch[0])
 ) {
-  throw new Error('Vierblick enthält noch Verweise auf externe Build-Dateien.');
+  throw new Error(
+    'Picture MultiCompare enthält noch Verweise auf externe Build-Dateien.',
+  );
 }
 
 await writeFile(
-  join(outputDirectory, 'Vierblick.html'),
+  join(outputDirectory, 'Picture-MultiCompare.html'),
   standaloneHtml,
   'utf8',
 );

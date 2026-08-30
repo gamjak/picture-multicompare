@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   clampPercent,
   clipPathsFor,
+  dividerSegmentsFor,
+  labelPositionsFor,
   movePointByKey,
   pointFromClient,
 } from './geometry';
@@ -55,12 +57,68 @@ describe('comparison geometry', () => {
     ]);
   });
 
-  it('creates four quadrants for four images', () => {
+  it('creates an X with top, right, bottom, and left regions for four images', () => {
     expect(clipPathsFor(4, { x: 30, y: 70 })).toEqual([
-      'inset(0 70% 30% 0)',
-      'inset(0 0 30% 30%)',
-      'inset(70% 0 0 30%)',
-      'inset(70% 70% 0 0)',
+      'polygon(30% 70%, 0% 0%, 100% 0%)',
+      'polygon(30% 70%, 100% 0%, 100% 100%)',
+      'polygon(30% 70%, 100% 100%, 0% 100%)',
+      'polygon(30% 70%, 0% 100%, 0% 0%)',
     ]);
+    expect(dividerSegmentsFor(4, { x: 30, y: 70 })).toEqual([
+      { start: { x: 30, y: 70 }, end: { x: 0, y: 0 } },
+      { start: { x: 30, y: 70 }, end: { x: 100, y: 0 } },
+      { start: { x: 30, y: 70 }, end: { x: 100, y: 100 } },
+      { start: { x: 30, y: 70 }, end: { x: 0, y: 100 } },
+    ]);
+  });
+
+  it.each([5, 6, 7, 8, 9, 10, 11, 12])(
+    'creates %i radial sectors and divider rays',
+    (count) => {
+      const point = { x: 50, y: 50 };
+      const clips = clipPathsFor(count, point);
+      const segments = dividerSegmentsFor(count, point);
+
+      expect(clips).toHaveLength(count);
+      expect(clips.every((clip) => clip.startsWith('polygon(50% 50%'))).toBe(
+        true,
+      );
+      expect(segments).toHaveLength(count);
+      expect(
+        segments.every(
+          ({ start, end }) =>
+            start.x === 50 &&
+            start.y === 50 &&
+            end.x >= 0 &&
+            end.x <= 100 &&
+            end.y >= 0 &&
+            end.y <= 100,
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it('scales the radial geometry and readable label positions to twelve images', () => {
+    const point = { x: 37, y: 62 };
+
+    expect(clipPathsFor(12, point)).toHaveLength(12);
+    expect(dividerSegmentsFor(12, point)).toHaveLength(12);
+    expect(labelPositionsFor(12, point)).toHaveLength(12);
+    expect(
+      labelPositionsFor(12, point).every(
+        (label) =>
+          label.x >= 5 && label.x <= 95 && label.y >= 5 && label.y <= 95,
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps outward-facing sectors degenerate when the center reaches a corner', () => {
+    const clips = clipPathsFor(5, { x: 0, y: 0 });
+
+    expect(clips).toHaveLength(5);
+    expect(clips[0]).toBe('polygon(0% 0%, 0% 0%, 0% 0%)');
+    expect(clips.every((clip) => !/NaN|Infinity|undefined/.test(clip))).toBe(
+      true,
+    );
   });
 });

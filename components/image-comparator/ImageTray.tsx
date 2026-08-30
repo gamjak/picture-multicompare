@@ -2,74 +2,88 @@
 
 /* oxlint-disable nextjs/no-img-element -- Local blob URLs must stay on-device and cannot use an image optimizer. */
 
-import { ImageIcon, Replace, Trash2 } from 'lucide-react';
+import { Crosshair, ImageIcon, Replace, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 
-import { SLOT_IDS } from './files';
-import type { ImageItem, SlotId } from './types';
+import { MAX_IMAGES } from './files';
+import type { ImageItem, StageImage } from './types';
 
 type ImageTrayProps = {
   images: ImageItem[];
+  activeImages: StageImage[];
   onRemove: (image: ImageItem) => void;
   onReplace: (image: ImageItem, file: File) => void;
-  onMove: (from: SlotId, to: SlotId) => void;
+  onMakeReference: (image: ImageItem) => void;
 };
 
 export function ImageTray({
   images,
+  activeImages,
   onRemove,
   onReplace,
-  onMove,
+  onMakeReference,
 }: ImageTrayProps) {
-  const orderedImages = [...images].sort(
-    (a, b) => SLOT_IDS.indexOf(a.slot) - SLOT_IDS.indexOf(b.slot),
+  const activeSlotById = new Map(
+    activeImages.map((image) => [image.id, image.slot]),
   );
-  const occupiedSlots = orderedImages.map((image) => image.slot);
 
   return (
     <aside className="image-tray" aria-label="Geladene Bilder">
       <div className="tray-heading">
         <div>
-          <span className="eyebrow">Ebenen</span>
+          <span className="eyebrow">Bildbibliothek</span>
           <h3>Geladene Bilder</h3>
         </div>
-        <span>{images.length}/4</span>
+        <span>
+          {images.length}/{MAX_IMAGES}
+        </span>
       </div>
 
       <div className="tray-list">
-        {orderedImages.map((image) => {
+        {images.map((image, index) => {
           const replaceId = 'replace-' + image.id;
+          const activeSlot = activeSlotById.get(image.id);
+          const slotLabel = activeSlot ?? '?';
+          const isReference = index === 0;
 
           return (
             <article className="image-card" key={image.id}>
               <div className="image-thumb">
                 <img src={image.url} alt="" draggable={false} />
-                <span>{image.slot}</span>
+                <span>{activeSlot}</span>
               </div>
               <div className="image-card-copy">
                 <strong title={image.name}>{image.name}</strong>
-                <label>
-                  <span>Position</span>
-                  <select
-                    aria-label={'Position für ' + image.name}
-                    value={image.slot}
-                    onChange={(event) =>
-                      onMove(image.slot, event.currentTarget.value as SlotId)
-                    }
-                  >
-                    {occupiedSlots.map((slot) => (
-                      <option key={slot} value={slot}>
-                        {slot}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <small>
+                  {isReference
+                    ? 'A · Gemeinsame Referenz'
+                    : `${activeSlot} · Vergleichsbild`}
+                </small>
               </div>
               <div className="image-card-actions">
+                {!isReference ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={
+                      'Bild ' +
+                      slotLabel +
+                      ': ' +
+                      image.name +
+                      ' als Referenz A verwenden'
+                    }
+                    onClick={() => onMakeReference(image)}
+                  >
+                    <Crosshair aria-hidden="true" />
+                  </Button>
+                ) : null}
                 <label htmlFor={replaceId} className="tray-icon-button">
                   <Replace aria-hidden="true" />
-                  <span className="sr-only">{image.name} ersetzen</span>
+                  <span className="sr-only">
+                    {'Bild ' + slotLabel + ': ' + image.name + ' ersetzen'}
+                  </span>
                   <input
                     id={replaceId}
                     className="sr-only"
@@ -88,7 +102,9 @@ export function ImageTray({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  aria-label={image.name + ' entfernen'}
+                  aria-label={
+                    'Bild ' + slotLabel + ': ' + image.name + ' entfernen'
+                  }
                   onClick={() => onRemove(image)}
                 >
                   <Trash2 aria-hidden="true" />
@@ -101,7 +117,7 @@ export function ImageTray({
 
       <p className="tray-tip">
         <ImageIcon aria-hidden="true" />
-        Die Buchstaben entsprechen den sichtbaren Bereichen.
+        Alle Bilder sind gleichzeitig sichtbar; A bleibt Referenz.
       </p>
     </aside>
   );

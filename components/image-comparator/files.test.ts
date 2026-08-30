@@ -2,20 +2,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   admitImageFiles,
-  compactSlots,
   createImageItem,
-  swapSlots,
+  MAX_IMAGES,
+  moveImageToReference,
+  SLOT_IDS,
+  stageImagesForAll,
 } from './files';
 import type { ImageItem } from './types';
 
 const file = (name: string, type: string) => new File(['x'], name, { type });
 
-const item = (slot: ImageItem['slot'], name: string = slot): ImageItem => ({
+const item = (name: string): ImageItem => ({
   id: name,
   name,
   type: 'image/png',
   url: 'blob:' + name,
-  slot,
 });
 
 afterEach(() => {
@@ -24,70 +25,76 @@ afterEach(() => {
 });
 
 describe('local image files', () => {
-  it('keeps the first four images and reports invalid and overflowing files', () => {
+  it('keeps up to twelve images and reports invalid and overflowing files', () => {
+    const imageFiles = Array.from({ length: 13 }, (_, index) =>
+      file(`${index + 1}.png`, 'image/png'),
+    );
     const result = admitImageFiles(
-      [
-        file('a.png', 'image/png'),
-        file('notes.txt', 'text/plain'),
-        file('b.jpg', 'image/jpeg'),
-        file('c.webp', 'image/webp'),
-        file('d.gif', 'image/gif'),
-        file('e.avif', 'image/avif'),
-      ],
+      [imageFiles[0], file('notes.txt', 'text/plain'), ...imageFiles.slice(1)],
       0,
     );
 
-    expect(result.accepted.map((entry) => entry.name)).toEqual([
-      'a.png',
-      'b.jpg',
-      'c.webp',
-      'd.gif',
-    ]);
+    expect(MAX_IMAGES).toBe(12);
+    expect(result.accepted).toHaveLength(MAX_IMAGES);
+    expect(result.accepted.at(-1)?.name).toBe('12.png');
     expect(result.rejectedNames).toEqual(['notes.txt']);
     expect(result.overflowCount).toBe(1);
   });
 
-  it('uses only the slots that remain available', () => {
+  it('uses only the remaining capacity', () => {
     const result = admitImageFiles(
       [file('a.png', 'image/png'), file('b.png', 'image/png')],
-      3,
+      MAX_IMAGES - 1,
     );
 
     expect(result.accepted.map((entry) => entry.name)).toEqual(['a.png']);
     expect(result.overflowCount).toBe(1);
   });
 
-  it('creates an object-url item in the requested slot', () => {
+  it('creates a local object-url item without a permanent stage slot', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'local-id' });
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:local');
 
-    expect(createImageItem(file('a.png', 'image/png'), 'B')).toEqual({
+    expect(createImageItem(file('a.png', 'image/png'))).toEqual({
       id: 'local-id',
       name: 'a.png',
       type: 'image/png',
       url: 'blob:local',
-      slot: 'B',
     });
   });
 
-  it('compacts gaps in slot order after an item is removed', () => {
-    expect(
-      compactSlots([item('A'), item('C'), item('D')]).map(
-        (entry) => entry.slot,
-      ),
-    ).toEqual(['A', 'B', 'C']);
-  });
-
-  it('swaps two occupied slots while retaining the stable load order', () => {
-    const swapped = swapSlots(
-      [item('A', 'first'), item('B', 'second')],
-      'A',
-      'B',
+  it('assigns all twelve images to simultaneous stage areas A through L', () => {
+    const images = Array.from({ length: 12 }, (_, index) =>
+      item(String.fromCharCode(97 + index)),
     );
 
-    expect(swapped.map((entry) => [entry.name, entry.slot])).toEqual([
-      ['first', 'B'],
-      ['second', 'A'],
+    expect(SLOT_IDS).toEqual([
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+      'K',
+      'L',
+    ]);
+    expect(
+      stageImagesForAll(images).map((image) => [image.id, image.slot]),
+    ).toEqual(images.map((image, index) => [image.id, SLOT_IDS[index]]));
+  });
+
+  it('moves a selected image to reference while retaining target order', () => {
+    const images = ['a', 'b', 'c', 'd'].map(item);
+
+    expect(moveImageToReference(images, 'c').map((image) => image.id)).toEqual([
+      'c',
+      'a',
+      'b',
+      'd',
     ]);
   });
 });

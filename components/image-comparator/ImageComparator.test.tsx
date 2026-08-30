@@ -49,7 +49,7 @@ describe('ImageComparator', () => {
     render(<ImageComparator />);
 
     expect(
-      screen.getByRole('heading', { name: 'Vierblick' }),
+      screen.getByRole('heading', { name: 'Picture MultiCompare' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Bleibt auf diesem Gerät')).toBeInTheDocument();
     expect(
@@ -67,25 +67,59 @@ describe('ImageComparator', () => {
     );
   });
 
-  it('loads the first four local images and reports overflow', async () => {
+  it('loads twelve local images, shows all at once, and reports overflow', async () => {
     const user = userEvent.setup();
-    render(<ImageComparator />);
+    const { container } = render(<ImageComparator />);
 
-    await user.upload(screen.getByLabelText('Lokale Bilder auswählen'), [
-      imageFile('a.png'),
-      imageFile('b.png'),
-      imageFile('c.png'),
-      imageFile('d.png'),
-      imageFile('e.png'),
-    ]);
+    await user.upload(
+      screen.getByLabelText('Lokale Bilder auswählen'),
+      Array.from({ length: 13 }, (_, index) => imageFile(`${index + 1}.png`)),
+    );
 
-    expect(screen.getAllByRole('img')).toHaveLength(4);
+    expect(screen.getAllByRole('img')).toHaveLength(12);
+    expect(screen.getByText('12/12')).toBeInTheDocument();
+    expect(container.querySelector('.comparison-stage')).toHaveAttribute(
+      'data-image-count',
+      '12',
+    );
+    expect(
+      container.querySelectorAll('.radial-divider-overlay line'),
+    ).toHaveLength(12);
+    expect(
+      screen.queryByRole('navigation', { name: 'Vergleichssätze' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent(
-      '1 weiteres Bild wurde nicht hinzugefügt',
+      '1 weiteres Bild wurde nicht hinzugefügt. Maximal 12 Bilder sind möglich.',
     );
     expect(
       screen.getByRole('button', { name: 'Bilder hinzufügen' }),
     ).toBeDisabled();
+  });
+
+  it('keeps every loaded image visible in the same comparison', async () => {
+    const user = userEvent.setup();
+    render(<ImageComparator />);
+    const picker = screen.getByLabelText('Lokale Bilder auswählen');
+
+    await user.upload(
+      picker,
+      ['a', 'b', 'c', 'd'].map((name) => imageFile(`${name}.png`)),
+    );
+    expect(screen.getAllByRole('img')).toHaveLength(4);
+
+    await user.upload(
+      picker,
+      ['e', 'f', 'g', 'h'].map((name) => imageFile(`${name}.png`)),
+    );
+
+    expect(screen.getAllByRole('img')).toHaveLength(8);
+    expect(
+      screen.getByRole('img', { name: 'Vergleichsbild A: a.png' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'Vergleichsbild H: h.png' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('8 Bilder · 8 Bereiche')).toBeInTheDocument();
   });
 
   it('rejects a non-image file without losing an accepted image', async () => {
@@ -101,7 +135,7 @@ describe('ImageComparator', () => {
     expect(screen.getByRole('status')).toHaveTextContent('notes.txt');
   });
 
-  it('removes an image, revokes its URL, and compacts remaining slots', async () => {
+  it('removes the reference, promotes the next image, and revokes its URL', async () => {
     const user = userEvent.setup();
     render(<ImageComparator />);
 
@@ -110,15 +144,21 @@ describe('ImageComparator', () => {
       imageFile('b.png'),
       imageFile('c.png'),
     ]);
-    await user.click(screen.getByRole('button', { name: 'a.png entfernen' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Bild A: a.png entfernen' }),
+    );
 
     expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:a.png');
     expect(screen.getAllByRole('img')).toHaveLength(2);
-    expect(screen.getByLabelText('Position für b.png')).toHaveValue('A');
-    expect(screen.getByLabelText('Position für c.png')).toHaveValue('B');
+    expect(
+      screen.getByRole('img', { name: 'Vergleichsbild A: b.png' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'b.png ist jetzt Referenz A',
+    );
   });
 
-  it('swaps occupied positions from the image tray', async () => {
+  it('makes any loaded target the common reference', async () => {
     const user = userEvent.setup();
     render(<ImageComparator />);
 
@@ -126,13 +166,21 @@ describe('ImageComparator', () => {
       imageFile('a.png'),
       imageFile('b.png'),
     ]);
-    await user.selectOptions(screen.getByLabelText('Position für a.png'), 'B');
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Bild B: b.png als Referenz A verwenden',
+      }),
+    );
 
-    expect(screen.getByLabelText('Position für a.png')).toHaveValue('B');
-    expect(screen.getByLabelText('Position für b.png')).toHaveValue('A');
+    expect(
+      screen.getByRole('img', { name: 'Vergleichsbild A: b.png' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'Vergleichsbild B: a.png' }),
+    ).toBeInTheDocument();
   });
 
-  it('resets divider, shared zoom, and the original image assignment', async () => {
+  it('resets divider and shared zoom without changing the reference', async () => {
     const user = userEvent.setup();
     render(<ImageComparator />);
 
@@ -140,7 +188,11 @@ describe('ImageComparator', () => {
       imageFile('a.png'),
       imageFile('b.png'),
     ]);
-    await user.selectOptions(screen.getByLabelText('Position für a.png'), 'B');
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Bild B: b.png als Referenz A verwenden',
+      }),
+    );
     fireEvent.change(screen.getByLabelText('Gemeinsamer Zoom'), {
       target: { value: '150' },
     });
@@ -153,14 +205,15 @@ describe('ImageComparator', () => {
     );
 
     expect(screen.getByLabelText('Gemeinsamer Zoom')).toHaveValue('100');
-    expect(screen.getByLabelText('Position für a.png')).toHaveValue('A');
-    expect(screen.getByLabelText('Position für b.png')).toHaveValue('B');
+    expect(
+      screen.getByRole('img', { name: 'Vergleichsbild A: b.png' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /Trennpunkt/ }),
     ).toHaveAccessibleName(/50 Prozent horizontal/);
   });
 
-  it('replaces an image while preserving its position', async () => {
+  it('replaces an image while preserving its library position', async () => {
     const user = userEvent.setup();
     render(<ImageComparator />);
 
@@ -169,15 +222,17 @@ describe('ImageComparator', () => {
       imageFile('b.png'),
     ]);
     await user.upload(
-      screen.getByLabelText('a.png ersetzen'),
+      screen.getByLabelText('Bild A: a.png ersetzen'),
       imageFile('neu.png'),
     );
 
     expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:a.png');
     expect(
-      screen.queryByLabelText('Position für a.png'),
+      screen.queryByRole('img', { name: 'Vergleichsbild A: a.png' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Position für neu.png')).toHaveValue('A');
+    expect(
+      screen.getByRole('img', { name: 'Vergleichsbild A: neu.png' }),
+    ).toBeInTheDocument();
   });
 
   it('shows keyboard focus on replacement controls and skips hidden pickers', async () => {
@@ -189,8 +244,31 @@ describe('ImageComparator', () => {
 
     await user.upload(addPicker, imageFile('a.png'));
 
-    const replacePicker = screen.getByLabelText('a.png ersetzen');
+    const replacePicker = screen.getByLabelText('Bild A: a.png ersetzen');
     expect(replacePicker.closest('.tray-icon-button')).toBeInTheDocument();
+  });
+
+  it('keeps actions distinguishable when two files have the same name', async () => {
+    const user = userEvent.setup();
+    render(<ImageComparator />);
+
+    await user.upload(screen.getByLabelText('Lokale Bilder auswählen'), [
+      imageFile('gleich.png'),
+      imageFile('gleich.png'),
+    ]);
+
+    expect(
+      screen.getByRole('button', { name: 'Bild A: gleich.png entfernen' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Bild B: gleich.png entfernen' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Bild A: gleich.png ersetzen'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Bild B: gleich.png ersetzen'),
+    ).toBeInTheDocument();
   });
 
   it('revokes remaining object URLs when the workspace unmounts', async () => {

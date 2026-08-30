@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AlignmentControls } from './AlignmentControls';
-import type { AlignmentEntry, ImageItem } from './types';
+import type { AlignmentEntry, StageImage } from './types';
 
-const images: ImageItem[] = [
+const images: StageImage[] = [
   { id: 'A', name: 'vorher.png', type: 'image/png', url: 'blob:A', slot: 'A' },
   { id: 'B', name: 'nachher.png', type: 'image/png', url: 'blob:B', slot: 'B' },
 ];

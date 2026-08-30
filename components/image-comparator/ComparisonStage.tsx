@@ -18,20 +18,26 @@ import {
   matrixToCss,
 } from './alignment';
 import { SLOT_IDS } from './files';
-import { clipPathsFor, movePointByKey, pointFromClient } from './geometry';
+import {
+  clipPathsFor,
+  dividerSegmentsFor,
+  labelPositionsFor,
+  movePointByKey,
+  pointFromClient,
+} from './geometry';
 import type {
   AlignmentEntry,
   CssMatrix,
-  ImageItem,
   ImageMetrics,
   ManualAlignmentSession,
   NormalizedPoint,
   Point,
+  StageImage,
   StageSize,
 } from './types';
 
 type ComparisonStageProps = {
-  images: ImageItem[];
+  images: StageImage[];
   point: Point;
   zoom: number;
   showLabels: boolean;
@@ -42,7 +48,7 @@ type ComparisonStageProps = {
   metricsById?: Record<string, ImageMetrics>;
   manualSession?: ManualAlignmentSession | null;
   onPointChange: (point: Point) => void;
-  onDecodeError: (image: ImageItem) => void;
+  onDecodeError: (image: StageImage) => void;
   onImageMetrics?: (imageId: string, metrics: ImageMetrics) => void;
   onManualPoint?: (imageId: string, point: NormalizedPoint) => void;
   onCancelManual?: () => void;
@@ -120,6 +126,8 @@ export function ComparisonStage({
     [images],
   );
   const clips = clipPathsFor(orderedImages.length, point);
+  const dividerSegments = dividerSegmentsFor(orderedImages.length, point);
+  const labelPositions = labelPositionsFor(orderedImages.length, point);
   const dividerY = orderedImages.length === 2 ? 50 : point.y;
   const stageStyle: StageStyle = {
     '--divider-x': point.x + '%',
@@ -579,26 +587,50 @@ export function ComparisonStage({
 
       {orderedImages.length >= 2 && !manualSession ? (
         <>
-          <span
-            className={[
-              'divider-line',
-              'divider-line--vertical',
-              orderedImages.length === 3 ? 'divider-line--lower' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            aria-hidden="true"
-          />
-          {orderedImages.length >= 3 ? (
-            <span
-              className="divider-line divider-line--horizontal"
+          {orderedImages.length >= 4 ? (
+            <svg
+              className="radial-divider-overlay"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
               aria-hidden="true"
-            />
-          ) : null}
+              focusable="false"
+            >
+              {dividerSegments.map((segment, index) => (
+                <line
+                  key={index}
+                  x1={segment.start.x}
+                  y1={segment.start.y}
+                  x2={segment.end.x}
+                  y2={segment.end.y}
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </svg>
+          ) : (
+            <>
+              <span
+                className={[
+                  'divider-line',
+                  'divider-line--vertical',
+                  orderedImages.length === 3 ? 'divider-line--lower' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-hidden="true"
+              />
+              {orderedImages.length >= 3 ? (
+                <span
+                  className="divider-line divider-line--horizontal"
+                  aria-hidden="true"
+                />
+              ) : null}
+            </>
+          )}
           <button
             type="button"
             className="divider-handle"
             disabled={Boolean(manualSession)}
+            style={{ left: `${point.x}%`, top: `${dividerY}%` }}
             aria-label={
               'Trennpunkt, ' +
               Math.round(point.x) +
@@ -617,10 +649,27 @@ export function ComparisonStage({
       {showLabels
         ? orderedImages
             .filter((image) => !manualSession || image.id === manualImageId)
-            .map((image) => (
+            .map((image, index) => (
               <span
-                className={'comparison-label comparison-label--' + image.slot}
+                className={
+                  'comparison-label comparison-label--' +
+                  image.slot +
+                  (orderedImages.length >= 4
+                    ? ' comparison-label--radial'
+                    : '') +
+                  (orderedImages.length >= 9
+                    ? ' comparison-label--compact'
+                    : '')
+                }
                 key={'label-' + image.id}
+                style={
+                  orderedImages.length >= 4
+                    ? {
+                        left: `${labelPositions[index].x}%`,
+                        top: `${labelPositions[index].y}%`,
+                      }
+                    : undefined
+                }
               >
                 <strong>{image.slot}</strong>
                 <span>{image.name}</span>

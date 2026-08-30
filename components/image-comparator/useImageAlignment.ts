@@ -7,10 +7,10 @@ import { analyzeImagePair, type AlignmentResult } from './image-analysis';
 import { SLOT_IDS } from './files';
 import type {
   AlignmentEntry,
-  ImageItem,
   ImageMetrics,
   ManualAlignmentSession,
   NormalizedPoint,
+  StageImage,
 } from './types';
 
 type AnalyzePair = (
@@ -19,7 +19,7 @@ type AnalyzePair = (
 ) => Promise<AlignmentResult>;
 
 type UseImageAlignmentOptions = {
-  images: ImageItem[];
+  images: StageImage[];
   enabled: boolean;
   metricsById: Record<string, ImageMetrics>;
   analyze?: AnalyzePair;
@@ -27,15 +27,15 @@ type UseImageAlignmentOptions = {
 
 type EntryMap = Record<string, AlignmentEntry>;
 
-const orderedImages = (images: ImageItem[]) =>
+const orderedImages = (images: StageImage[]) =>
   [...images].sort(
     (left, right) => SLOT_IDS.indexOf(left.slot) - SLOT_IDS.indexOf(right.slot),
   );
 
 const entryMatchesPair = (
   entry: AlignmentEntry,
-  reference: ImageItem,
-  target: ImageItem,
+  reference: StageImage,
+  target: StageImage,
 ) =>
   entry.referenceId === reference.id &&
   entry.referenceUrl === reference.url &&
@@ -55,7 +55,7 @@ export function useImageAlignment({
     [ordered, reference?.id],
   );
   const signature = ordered
-    .map((image) => `${image.id}:${image.slot}:${image.url}`)
+    .map((image) => `${image.id}:${image.url}`)
     .join('|');
   const [entriesByImageId, setEntriesByImageId] = useState<EntryMap>({});
   const entriesRef = useRef<EntryMap>({});
@@ -211,11 +211,14 @@ export function useImageAlignment({
   const reanalyze = useCallback(
     (targetId?: string) => {
       updateEntries((current) => {
-        if (!targetId) {
-          return {};
-        }
         const next = { ...current };
-        delete next[targetId];
+        if (targetId) {
+          delete next[targetId];
+        } else {
+          for (const target of targets) {
+            delete next[target.id];
+          }
+        }
         return next;
       });
       setManualSession((current) =>
@@ -223,7 +226,7 @@ export function useImageAlignment({
       );
       setRetryVersion((current) => current + 1);
     },
-    [updateEntries],
+    [targets, updateEntries],
   );
 
   const beginManual = useCallback(

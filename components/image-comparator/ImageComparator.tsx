@@ -6,6 +6,7 @@ import { Crosshair, Images, ShieldCheck, Upload } from 'lucide-react';
 import {
   type DragEvent as ReactDragEvent,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -16,10 +17,10 @@ import { AlignmentControls } from './AlignmentControls';
 import { ComparisonStage } from './ComparisonStage';
 import {
   admitImageFiles,
-  compactSlots,
   createImageItem,
-  SLOT_IDS,
-  swapSlots,
+  MAX_IMAGES,
+  moveImageToReference,
+  stageImagesForAll,
 } from './files';
 import { ImageTray } from './ImageTray';
 import type { AlignmentResult } from './image-analysis';
@@ -29,7 +30,7 @@ import type {
   ImageMetrics,
   IntakeResult,
   Point,
-  SlotId,
+  StageImage,
 } from './types';
 import { useImageAlignment } from './useImageAlignment';
 
@@ -58,10 +59,12 @@ function intakeMessage(result: IntakeResult): string {
   }
 
   if (result.overflowCount === 1) {
-    parts.push('1 weiteres Bild wurde nicht hinzugefügt.');
+    parts.push(
+      `1 weiteres Bild wurde nicht hinzugefügt. Maximal ${MAX_IMAGES} Bilder sind möglich.`,
+    );
   } else if (result.overflowCount > 1) {
     parts.push(
-      result.overflowCount + ' weitere Bilder wurden nicht hinzugefügt.',
+      `${result.overflowCount} weitere Bilder wurden nicht hinzugefügt. Maximal ${MAX_IMAGES} Bilder sind möglich.`,
     );
   }
 
@@ -85,8 +88,9 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
   const liveUrls = useRef(new Set<string>());
   const canFullscreen =
     typeof document !== 'undefined' && document.fullscreenEnabled;
+  const activeImages = useMemo(() => stageImagesForAll(images), [images]);
   const alignment = useImageAlignment({
-    images,
+    images: activeImages,
     enabled: alignmentEnabled,
     metricsById,
     analyze: analyzePair,
@@ -122,13 +126,15 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
     [],
   );
 
+  const cancelManualAlignment = () => {
+    setShowAlignmentPoints(false);
+    alignment.cancelManual();
+  };
+
   const addFiles = (files: Iterable<File>) => {
     const result = admitImageFiles(files, images.length);
-    const freeSlots = SLOT_IDS.filter(
-      (slot) => !images.some((image) => image.slot === slot),
-    );
-    const additions = result.accepted.map((file, index) => {
-      const item = createImageItem(file, freeSlots[index]);
+    const additions = result.accepted.map((file) => {
+      const item = createImageItem(file);
       liveUrls.current.add(item.url);
       return item;
     });
@@ -143,12 +149,24 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
   };
 
   const removeImage = (image: ImageItem) => {
+    const imageIndex = images.findIndex((entry) => entry.id === image.id);
+    if (imageIndex < 0) {
+      return;
+    }
+    const nextImages = images.filter((entry) => entry.id !== image.id);
+
     revokeUrl(image.url);
     discardMetrics(image.id);
-    setImages((current) =>
-      compactSlots(current.filter((entry) => entry.id !== image.id)),
-    );
-    setLiveMessage(image.name + ' wurde entfernt.');
+    cancelManualAlignment();
+    setImages(nextImages);
+
+    if (imageIndex === 0 && nextImages[0]) {
+      setLiveMessage(
+        `${image.name} wurde entfernt. ${nextImages[0].name} ist jetzt Referenz A.`,
+      );
+    } else {
+      setLiveMessage(image.name + ' wurde entfernt.');
+    }
   };
 
   const replaceImage = (image: ImageItem, file: File) => {
@@ -157,23 +175,44 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
       return;
     }
 
-    const replacement = createImageItem(file, image.slot);
+    const replacement = createImageItem(file, image.id);
     liveUrls.current.add(replacement.url);
     revokeUrl(image.url);
     discardMetrics(image.id);
+    cancelManualAlignment();
     setImages((current) =>
-      current.map((entry) => (entry.id === image.id ? replacement : entry)),
+      current.map((entry) =>
+        entry.id === image.id && entry.url === image.url ? replacement : entry,
+      ),
     );
     setLiveMessage(image.name + ' wurde durch ' + file.name + ' ersetzt.');
   };
 
-  const handleDecodeError = (image: ImageItem) => {
-    revokeUrl(image.url);
-    discardMetrics(image.id);
-    setImages((current) =>
-      compactSlots(current.filter((entry) => entry.id !== image.id)),
+  const handleDecodeError = (image: StageImage) => {
+    const storedImage = images.find(
+      (entry) => entry.id === image.id && entry.url === image.url,
     );
-    setLiveMessage(image.name + ' konnte nicht gelesen werden.');
+    if (!storedImage) {
+      return;
+    }
+
+    revokeUrl(storedImage.url);
+    discardMetrics(storedImage.id);
+    cancelManualAlignment();
+    const nextImages = images.filter((entry) => entry.id !== storedImage.id);
+    setImages(nextImages);
+    setLiveMessage(storedImage.name + ' konnte nicht gelesen werden.');
+  };
+
+  const makeReference = (image: ImageItem) => {
+    if (images[0]?.id === image.id) {
+      return;
+    }
+    cancelManualAlignment();
+    setImages((current) => moveImageToReference(current, image.id));
+    setLiveMessage(
+      `${image.name} ist jetzt Referenz A. Die Ausrichtung wird neu berechnet.`,
+    );
   };
 
   const resetView = () => {
@@ -184,12 +223,6 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
     setShowAlignmentPoints(false);
     alignment.cancelManual();
     alignment.reanalyze();
-    setImages((current) =>
-      current.map((image, index) => ({
-        ...image,
-        slot: SLOT_IDS[index],
-      })),
-    );
     setLiveMessage('Die Ansicht wurde zurückgesetzt.');
   };
 
@@ -220,8 +253,8 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
             <Crosshair />
           </span>
           <div>
-            <h1>Vierblick</h1>
-            <p>Bilder direkt vergleichen</p>
+            <h1>Picture MultiCompare</h1>
+            <p>Viele Bilder. Ein präziser Vergleich.</p>
           </div>
         </div>
 
@@ -259,19 +292,21 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
       >
         <div className="workspace-heading">
           <div>
-            <span className="eyebrow">Lokaler Vergleich</span>
+            <span className="eyebrow">Lokaler Mehrfachvergleich</span>
             <h2>
               {images.length === 0
-                ? 'Bis zu vier Perspektiven. Ein Blick.'
+                ? 'Bis zu zwölf Bilder. Präzise verglichen.'
                 : images.length === 1
-                  ? '1 Bild bereit für den Vergleich'
-                  : images.length + ' Bilder im direkten Vergleich'}
+                  ? '1 Referenzbild bereit'
+                  : `${images.length} Bilder · ${images.length} Bereiche`}
             </h2>
           </div>
           <p>
             {images.length === 0
-              ? 'Lege Varianten deckungsgleich übereinander und verschiebe den Trenner genau dorthin, wo du Unterschiede prüfen möchtest.'
-              : 'Alle Ebenen sind gleich skaliert und zentriert. Die lokale Ausrichtung gleicht kleine Verschiebungen, Drehungen und Größenunterschiede aus.'}
+              ? 'Lege ähnliche Aufnahmen deckungsgleich übereinander und prüfe Unterschiede direkt am verschiebbaren Kreuz.'
+              : images.length === 1
+                ? 'Füge mindestens ein Zielbild hinzu. Bild A bleibt die gemeinsame Referenz für alle Vergleiche.'
+                : 'Alle Bilder sind gleichzeitig sichtbar. A bleibt die gemeinsame Referenz; alle Ziele werden gleich skaliert, zentriert und lokal ausgerichtet.'}
           </p>
         </div>
 
@@ -290,8 +325,8 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
               <div>
                 <h3>Deine Bilder hier ablegen</h3>
                 <p>
-                  Wähle zwei bis vier Bilder. Sie werden automatisch gleich
-                  skaliert und mittig ausgerichtet.
+                  Wähle zwei bis zwölf Bilder. Alle erscheinen gleichzeitig in
+                  eigenen Bereichen und werden automatisch ausgerichtet.
                 </p>
               </div>
               <div className="dropzone-actions">
@@ -313,7 +348,7 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
             <Toolbar
               zoom={zoom}
               showLabels={showLabels}
-              canAdd={images.length < 4}
+              canAdd={images.length < MAX_IMAGES}
               canFullscreen={canFullscreen}
               onZoomChange={setZoom}
               onAdd={() => inputRef.current?.click()}
@@ -322,7 +357,7 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
               onFullscreen={openFullscreen}
             />
             <AlignmentControls
-              images={images}
+              images={activeImages}
               enabled={alignmentEnabled}
               showPoints={showAlignmentPoints}
               referenceId={alignment.referenceId}
@@ -331,8 +366,7 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
               onEnabledChange={(enabled) => {
                 setAlignmentEnabled(enabled);
                 if (!enabled) {
-                  setShowAlignmentPoints(false);
-                  alignment.cancelManual();
+                  cancelManualAlignment();
                 }
               }}
               onShowPointsChange={setShowAlignmentPoints}
@@ -355,7 +389,7 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
             />
             <div className="workspace-grid">
               <ComparisonStage
-                images={images}
+                images={activeImages}
                 point={point}
                 zoom={zoom}
                 showLabels={showLabels}
@@ -384,11 +418,10 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
               />
               <ImageTray
                 images={images}
+                activeImages={activeImages}
                 onRemove={removeImage}
                 onReplace={replaceImage}
-                onMove={(from: SlotId, to: SlotId) =>
-                  setImages((current) => swapSlots(current, from, to))
-                }
+                onMakeReference={makeReference}
               />
             </div>
           </div>
@@ -417,9 +450,9 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
         <footer className="workspace-footer">
           {images.length === 0 ? (
             <>
-              <span>2 Bilder · geteilter Slider</span>
-              <span>3 Bilder · T-Ansicht</span>
-              <span>4 Bilder · Bildkreuz</span>
+              <span>Bis zu 12 Bilder lokal</span>
+              <span>A als gemeinsame Referenz</span>
+              <span>Jedes Bild in einem eigenen Bereich</span>
             </>
           ) : (
             <>

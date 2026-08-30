@@ -7,7 +7,7 @@ import { ImageComparator } from '../components/image-comparator/ImageComparator'
 const root = document.getElementById('root');
 
 if (!root) {
-  throw new Error('Vierblick konnte nicht gestartet werden.');
+  throw new Error('Picture MultiCompare konnte nicht gestartet werden.');
 }
 
 createRoot(root).render(

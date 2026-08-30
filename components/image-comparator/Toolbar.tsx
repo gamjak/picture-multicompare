@@ -112,7 +112,7 @@ export function Toolbar({
           ) : (
             <EyeOff data-icon="inline-start" aria-hidden="true" />
           )}
-          Bereiche
+          Beschriftungen
         </Button>
         <Button
           type="button"

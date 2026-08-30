@@ -2,10 +2,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AlignmentResult } from './image-analysis';
-import type { ImageItem, ImageMetrics } from './types';
+import type { ImageMetrics, StageImage } from './types';
 import { useImageAlignment } from './useImageAlignment';
 
-const images: ImageItem[] = [
+const images: StageImage[] = [
   { id: 'image-a', name: 'A.png', type: 'image/png', url: 'blob:a', slot: 'A' },
   { id: 'image-b', name: 'B.png', type: 'image/png', url: 'blob:b', slot: 'B' },
 ];
@@ -42,6 +42,47 @@ const deferred = <T,>() => {
 };
 
 describe('useImageAlignment', () => {
+  it('aligns all eleven comparison images against the same reference A', async () => {
+    const slots: StageImage['slot'][] = [
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+      'K',
+      'L',
+    ];
+    const manyImages: StageImage[] = slots.map((slot) => ({
+      id: `image-${slot.toLowerCase()}`,
+      name: `${slot}.png`,
+      type: 'image/png',
+      url: `blob:${slot.toLowerCase()}`,
+      slot,
+    }));
+    const analyze = vi.fn(async () => alignedResult);
+    const { result } = renderHook(() =>
+      useImageAlignment({
+        images: manyImages,
+        enabled: true,
+        metricsById: {},
+        analyze,
+      }),
+    );
+
+    await waitFor(() => expect(analyze).toHaveBeenCalledTimes(11));
+    await waitFor(() =>
+      expect(Object.keys(result.current.entriesByImageId)).toHaveLength(11),
+    );
+    expect(analyze.mock.calls).toEqual(
+      manyImages.slice(1).map((target) => ['blob:a', target.url]),
+    );
+  });
+
   it('analyzes B against A and reuses the cached result across switch changes', async () => {
     const analysis = deferred<AlignmentResult>();
     const analyze = vi.fn(() => analysis.promise);
@@ -94,7 +135,7 @@ describe('useImageAlignment', () => {
     );
 
     await waitFor(() => expect(analyze).toHaveBeenCalledTimes(1));
-    const replacement: ImageItem = {
+    const replacement: StageImage = {
       ...images[1],
       id: 'image-b-new',
       name: 'B-neu.png',

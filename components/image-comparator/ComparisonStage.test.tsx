@@ -2,14 +2,35 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ComparisonStage } from './ComparisonStage';
-import type { AlignmentEntry, ImageItem, ImageMetrics } from './types';
+import type { AlignmentEntry, ImageMetrics, StageImage } from './types';
 
-const images: ImageItem[] = ['A', 'B', 'C', 'D'].map((slot) => ({
+const images: StageImage[] = ['A', 'B', 'C', 'D'].map((slot) => ({
   id: slot,
   name: slot + '.png',
   type: 'image/png',
   url: 'blob:' + slot,
-  slot: slot as ImageItem['slot'],
+  slot: slot as StageImage['slot'],
+}));
+
+const twelveImages: StageImage[] = [
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+  'J',
+  'K',
+  'L',
+].map((slot) => ({
+  id: slot,
+  name: slot + '.png',
+  type: 'image/png',
+  url: 'blob:' + slot,
+  slot: slot as StageImage['slot'],
 }));
 
 const metricsById: Record<string, ImageMetrics> = {
@@ -84,7 +105,7 @@ describe('ComparisonStage', () => {
   it('renders four layers and applies keyboard movement to the divider', () => {
     const onPointChange = vi.fn();
 
-    render(
+    const { container } = render(
       <ComparisonStage
         images={images}
         point={{ x: 50, y: 50 }}
@@ -100,6 +121,9 @@ describe('ComparisonStage', () => {
       'data-interactive',
       'true',
     );
+    expect(
+      container.querySelectorAll('.radial-divider-overlay line'),
+    ).toHaveLength(4);
 
     fireEvent.keyDown(screen.getByRole('button', { name: /Trennpunkt/ }), {
       key: 'ArrowRight',
@@ -107,6 +131,31 @@ describe('ComparisonStage', () => {
     });
 
     expect(onPointChange).toHaveBeenCalledWith({ x: 60, y: 50 });
+  });
+
+  it('renders twelve simultaneous radial sectors and divider rays', () => {
+    const { container } = render(
+      <ComparisonStage
+        images={twelveImages}
+        point={{ x: 50, y: 50 }}
+        zoom={100}
+        showLabels
+        onPointChange={vi.fn()}
+        onDecodeError={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole('img')).toHaveLength(12);
+    expect(container.querySelectorAll('.comparison-layer')).toHaveLength(12);
+    expect(
+      [...container.querySelectorAll<HTMLElement>('.comparison-layer')].every(
+        (layer) => layer.style.clipPath.startsWith('polygon(50% 50%'),
+      ),
+    ).toBe(true);
+    expect(
+      container.querySelectorAll('.radial-divider-overlay line'),
+    ).toHaveLength(12);
+    expect(screen.getByText('L')).toBeInTheDocument();
   });
 
   it('does not change the unused vertical axis in two-image mode', () => {
@@ -130,6 +179,24 @@ describe('ComparisonStage', () => {
 
     expect(defaultAllowed).toBe(false);
     expect(onPointChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps the visible star center on the actual geometry point at an edge', () => {
+    render(
+      <ComparisonStage
+        images={twelveImages.slice(0, 5)}
+        point={{ x: 0, y: 0 }}
+        zoom={100}
+        showLabels
+        onPointChange={vi.fn()}
+        onDecodeError={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Trennpunkt/ })).toHaveStyle({
+      left: '0%',
+      top: '0%',
+    });
   });
 
   it('ignores non-primary pointer buttons on the comparison stage', () => {

@@ -1,6 +1,20 @@
-import type { ImageItem, IntakeResult, SlotId } from './types';
+import type { ImageItem, IntakeResult, SlotId, StageImage } from './types';
 
-export const SLOT_IDS: SlotId[] = ['A', 'B', 'C', 'D'];
+export const MAX_IMAGES = 12;
+export const SLOT_IDS: SlotId[] = [
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+  'J',
+  'K',
+  'L',
+];
 
 export function admitImageFiles(
   files: Iterable<File>,
@@ -17,7 +31,7 @@ export function admitImageFiles(
     }
   }
 
-  const available = Math.max(0, 4 - occupiedCount);
+  const available = Math.max(0, MAX_IMAGES - occupiedCount);
 
   return {
     accepted: imageFiles.slice(0, available),
@@ -26,43 +40,33 @@ export function admitImageFiles(
   };
 }
 
-export function createImageItem(file: File, slot: SlotId): ImageItem {
+export function createImageItem(
+  file: File,
+  id = crypto.randomUUID(),
+): ImageItem {
   return {
-    id: crypto.randomUUID(),
+    id,
     name: file.name,
     type: file.type,
     url: URL.createObjectURL(file),
-    slot,
   };
 }
 
-export function compactSlots(items: ImageItem[]): ImageItem[] {
-  const compactedSlots = new Map(
-    [...items]
-      .sort((a, b) => SLOT_IDS.indexOf(a.slot) - SLOT_IDS.indexOf(b.slot))
-      .map((item, index) => [item.id, SLOT_IDS[index]]),
-  );
-
-  return items.map((item) => ({
-    ...item,
-    slot: compactedSlots.get(item.id) ?? item.slot,
+export function stageImagesForAll(images: ImageItem[]): StageImage[] {
+  return images.slice(0, MAX_IMAGES).map((image, index) => ({
+    ...image,
+    slot: SLOT_IDS[index],
   }));
 }
 
-export function swapSlots(
-  items: ImageItem[],
-  from: SlotId,
-  to: SlotId,
+export function moveImageToReference(
+  images: ImageItem[],
+  imageId: string,
 ): ImageItem[] {
-  return items.map((item) => {
-    if (item.slot === from) {
-      return { ...item, slot: to };
-    }
+  const nextReference = images.find((image) => image.id === imageId);
+  if (!nextReference || images[0]?.id === imageId) {
+    return images;
+  }
 
-    if (item.slot === to) {
-      return { ...item, slot: from };
-    }
-
-    return item;
-  });
+  return [nextReference, ...images.filter((image) => image.id !== imageId)];
 }

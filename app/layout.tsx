@@ -4,9 +4,9 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Vierblick – Bilder direkt vergleichen',
+  title: 'Picture MultiCompare – Bilder gleichzeitig vergleichen',
   description:
-    'Vergleiche bis zu vier Bilder lokal in einem verschiebbaren Bildkreuz.',
+    'Vergleiche bis zu zwölf Bilder gleichzeitig in einer lokalen, sternförmig geteilten Ansicht.',
 };
 
 export default function RootLayout({

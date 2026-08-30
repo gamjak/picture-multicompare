@@ -82,13 +82,28 @@ export type ManualAlignmentSession = {
   error?: 'spread' | 'missing-metrics';
 };
 
-export type SlotId = 'A' | 'B' | 'C' | 'D';
+export type SlotId =
+  | 'A'
+  | 'B'
+  | 'C'
+  | 'D'
+  | 'E'
+  | 'F'
+  | 'G'
+  | 'H'
+  | 'I'
+  | 'J'
+  | 'K'
+  | 'L';
 
 export type ImageItem = {
   id: string;
   name: string;
   type: string;
   url: string;
+};
+
+export type StageImage = ImageItem & {
   slot: SlotId;
 };
 
