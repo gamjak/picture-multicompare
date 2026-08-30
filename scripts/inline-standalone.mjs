@@ -24,15 +24,39 @@ const [stylesheet, script] = await Promise.all([
   readFile(join(outputDirectory, scriptMatch[1]), 'utf8'),
 ]);
 
-const standaloneHtml = sourceHtml
-  .replace(
-    stylesheetMatch[0],
-    () => `<style>${stylesheet.replaceAll('</style', '<\\/style')}</style>`,
-  )
-  .replace(
-    scriptMatch[0],
-    () => `<script>${script.replaceAll('</script', '<\\/script')}</script>`,
+export function composeStandaloneHtml(
+  html,
+  stylesheetTag,
+  scriptTag,
+  stylesheetContent,
+  scriptContent,
+) {
+  const htmlWithStyles = html.replace(
+    stylesheetTag,
+    () =>
+      `<style>${stylesheetContent.replaceAll('</style', '<\\/style')}</style>`,
   );
+  const htmlWithoutScriptTag = htmlWithStyles
+    .replace(scriptTag, '')
+    .replace(/^[\t ]+$/gm, '');
+  const inlineScript = `<script>${scriptContent.replaceAll(
+    '</script',
+    '<\\/script',
+  )}</script>`;
+
+  return htmlWithoutScriptTag.replace(
+    '</body>',
+    () => `${inlineScript}\n  </body>`,
+  );
+}
+
+const standaloneHtml = composeStandaloneHtml(
+  sourceHtml,
+  stylesheetMatch[0],
+  scriptMatch[0],
+  stylesheet,
+  script,
+);
 
 if (
   standaloneHtml.includes(stylesheetMatch[0]) ||
