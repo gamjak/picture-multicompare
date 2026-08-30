@@ -39,6 +39,46 @@ export type CssMatrix = {
   f: number;
 };
 
+export type AlignmentAnchor = {
+  reference: NormalizedPoint;
+  target: NormalizedPoint;
+};
+
+export type AlignmentFailureReason =
+  | 'not-enough-detail'
+  | 'ambiguous'
+  | 'out-of-range';
+
+type AlignmentEntryBase = {
+  referenceId: string;
+  referenceUrl: string;
+  targetId: string;
+  targetUrl: string;
+};
+
+export type AlignmentEntry =
+  | (AlignmentEntryBase & { status: 'analyzing' })
+  | (AlignmentEntryBase & {
+      status: 'failed';
+      reason: AlignmentFailureReason;
+    })
+  | (AlignmentEntryBase & {
+      status: 'aligned';
+      source: 'automatic' | 'manual';
+      transform: SimilarityTransform;
+      anchors: AlignmentAnchor[];
+      confidence: number;
+      rmsError: number;
+    });
+
+export type ManualAlignmentSession = {
+  targetId: string;
+  phase: 'reference' | 'target' | 'ready';
+  referencePoints: NormalizedPoint[];
+  targetPoints: NormalizedPoint[];
+  error?: 'spread' | 'missing-metrics';
+};
+
 export type SlotId = 'A' | 'B' | 'C' | 'D';
 
 export type ImageItem = {

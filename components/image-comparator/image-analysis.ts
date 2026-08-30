@@ -3,7 +3,11 @@ import {
   estimateSimilarity,
   triangleSpread,
 } from './alignment';
-import type { NormalizedPoint, SimilarityTransform } from './types';
+import type {
+  AlignmentAnchor,
+  AlignmentFailureReason,
+  SimilarityTransform,
+} from './types';
 
 export type GrayImage = {
   width: number;
@@ -26,11 +30,6 @@ export type FeatureMatch = {
   distance: number;
 };
 
-export type AlignmentAnchor = {
-  reference: NormalizedPoint;
-  target: NormalizedPoint;
-};
-
 export type AlignmentResult =
   | {
       status: 'aligned';
@@ -41,7 +40,7 @@ export type AlignmentResult =
     }
   | {
       status: 'failed';
-      reason: 'not-enough-detail' | 'ambiguous' | 'out-of-range';
+      reason: AlignmentFailureReason;
     };
 
 const PATCH_RADIUS = 8;
