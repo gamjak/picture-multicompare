@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   Eye,
@@ -8,9 +8,9 @@ import {
   Plus,
   RotateCcw,
   Upload,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 
 type ToolbarProps = {
   zoom: number;
@@ -102,9 +102,7 @@ export function Toolbar({
           type="button"
           variant="ghost"
           aria-label={
-            showLabels
-              ? "Bereichsnamen ausblenden"
-              : "Bereichsnamen einblenden"
+            showLabels ? 'Bereichsnamen ausblenden' : 'Bereichsnamen einblenden'
           }
           aria-pressed={showLabels}
           onClick={onToggleLabels}

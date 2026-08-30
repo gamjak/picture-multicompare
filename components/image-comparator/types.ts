@@ -3,7 +3,7 @@ export type Point = {
   y: number;
 };
 
-export type SlotId = "A" | "B" | "C" | "D";
+export type SlotId = 'A' | 'B' | 'C' | 'D';
 
 export type ImageItem = {
   id: string;

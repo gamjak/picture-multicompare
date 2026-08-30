@@ -1,20 +1,20 @@
-import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
 
 afterEach(() => {
   cleanup();
 });
 
 if (!URL.createObjectURL) {
-  Object.defineProperty(URL, "createObjectURL", {
+  Object.defineProperty(URL, 'createObjectURL', {
     configurable: true,
-    value: () => "blob:test",
+    value: () => 'blob:test',
   });
 }
 
 if (!URL.revokeObjectURL) {
-  Object.defineProperty(URL, "revokeObjectURL", {
+  Object.defineProperty(URL, 'revokeObjectURL', {
     configurable: true,
     value: () => undefined,
   });

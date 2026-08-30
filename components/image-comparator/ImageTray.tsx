@@ -1,11 +1,13 @@
-"use client";
+'use client';
 
-import { ImageIcon, Replace, Trash2 } from "lucide-react";
+/* oxlint-disable nextjs/no-img-element -- Local blob URLs must stay on-device and cannot use an image optimizer. */
 
-import { Button } from "@/components/ui/button";
+import { ImageIcon, Replace, Trash2 } from 'lucide-react';
 
-import { SLOT_IDS } from "./files";
-import type { ImageItem, SlotId } from "./types";
+import { Button } from '@/components/ui/button';
+
+import { SLOT_IDS } from './files';
+import type { ImageItem, SlotId } from './types';
 
 type ImageTrayProps = {
   images: ImageItem[];
@@ -37,7 +39,7 @@ export function ImageTray({
 
       <div className="tray-list">
         {orderedImages.map((image) => {
-          const replaceId = "replace-" + image.id;
+          const replaceId = 'replace-' + image.id;
 
           return (
             <article className="image-card" key={image.id}>
@@ -50,13 +52,10 @@ export function ImageTray({
                 <label>
                   <span>Position</span>
                   <select
-                    aria-label={"Position für " + image.name}
+                    aria-label={'Position für ' + image.name}
                     value={image.slot}
                     onChange={(event) =>
-                      onMove(
-                        image.slot,
-                        event.currentTarget.value as SlotId,
-                      )
+                      onMove(image.slot, event.currentTarget.value as SlotId)
                     }
                   >
                     {occupiedSlots.map((slot) => (
@@ -68,31 +67,28 @@ export function ImageTray({
                 </label>
               </div>
               <div className="image-card-actions">
-                <label
-                  htmlFor={replaceId}
-                  className="tray-icon-button"
-                >
+                <label htmlFor={replaceId} className="tray-icon-button">
                   <Replace aria-hidden="true" />
                   <span className="sr-only">{image.name} ersetzen</span>
+                  <input
+                    id={replaceId}
+                    className="sr-only"
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => {
+                      const file = event.currentTarget.files?.[0];
+                      if (file) {
+                        onReplace(image, file);
+                      }
+                      event.currentTarget.value = '';
+                    }}
+                  />
                 </label>
-                <input
-                  id={replaceId}
-                  className="sr-only"
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    const file = event.currentTarget.files?.[0];
-                    if (file) {
-                      onReplace(image, file);
-                    }
-                    event.currentTarget.value = "";
-                  }}
-                />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  aria-label={image.name + " entfernen"}
+                  aria-label={image.name + ' entfernen'}
                   onClick={() => onRemove(image)}
                 >
                   <Trash2 aria-hidden="true" />

@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 
-import "./globals.css";
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Vierblick – Bilder direkt vergleichen",
+  title: 'Vierblick – Bilder direkt vergleichen',
   description:
-    "Vergleiche bis zu vier Bilder lokal in einem verschiebbaren Bildkreuz.",
+    'Vergleiche bis zu vier Bilder lokal in einem verschiebbaren Bildkreuz.',
 };
 
 export default function RootLayout({

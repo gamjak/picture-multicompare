@@ -1,19 +1,19 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
-import { ComparisonStage } from "./ComparisonStage";
-import type { ImageItem } from "./types";
+import { ComparisonStage } from './ComparisonStage';
+import type { ImageItem } from './types';
 
-const images: ImageItem[] = ["A", "B", "C", "D"].map((slot) => ({
+const images: ImageItem[] = ['A', 'B', 'C', 'D'].map((slot) => ({
   id: slot,
-  name: slot + ".png",
-  type: "image/png",
-  url: "blob:" + slot,
-  slot: slot as ImageItem["slot"],
+  name: slot + '.png',
+  type: 'image/png',
+  url: 'blob:' + slot,
+  slot: slot as ImageItem['slot'],
 }));
 
-describe("ComparisonStage", () => {
-  it("shows a one-image prompt without an active divider", () => {
+describe('ComparisonStage', () => {
+  it('shows a one-image prompt without an active divider', () => {
     render(
       <ComparisonStage
         images={images.slice(0, 1)}
@@ -26,14 +26,18 @@ describe("ComparisonStage", () => {
     );
 
     expect(
-      screen.getByText("Füge mindestens ein weiteres Bild hinzu"),
+      screen.getByText('Füge mindestens ein weiteres Bild hinzu'),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Trennpunkt/ }),
+      screen.queryByRole('button', { name: /Trennpunkt/ }),
     ).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Bildvergleich')).toHaveAttribute(
+      'data-interactive',
+      'false',
+    );
   });
 
-  it("renders four layers and applies keyboard movement to the divider", () => {
+  it('renders four layers and applies keyboard movement to the divider', () => {
     const onPointChange = vi.fn();
 
     render(
@@ -47,20 +51,21 @@ describe("ComparisonStage", () => {
       />,
     );
 
-    expect(screen.getAllByRole("img")).toHaveLength(4);
-
-    fireEvent.keyDown(
-      screen.getByRole("button", { name: /Trennpunkt/ }),
-      {
-        key: "ArrowRight",
-        shiftKey: true,
-      },
+    expect(screen.getAllByRole('img')).toHaveLength(4);
+    expect(screen.getByLabelText('Bildvergleich')).toHaveAttribute(
+      'data-interactive',
+      'true',
     );
+
+    fireEvent.keyDown(screen.getByRole('button', { name: /Trennpunkt/ }), {
+      key: 'ArrowRight',
+      shiftKey: true,
+    });
 
     expect(onPointChange).toHaveBeenCalledWith({ x: 60, y: 50 });
   });
 
-  it("does not change the unused vertical axis in two-image mode", () => {
+  it('does not change the unused vertical axis in two-image mode', () => {
     const onPointChange = vi.fn();
 
     render(
@@ -74,15 +79,16 @@ describe("ComparisonStage", () => {
       />,
     );
 
-    fireEvent.keyDown(
-      screen.getByRole("button", { name: /Trennpunkt/ }),
-      { key: "ArrowDown" },
+    const defaultAllowed = fireEvent.keyDown(
+      screen.getByRole('button', { name: /Trennpunkt/ }),
+      { key: 'ArrowDown' },
     );
 
+    expect(defaultAllowed).toBe(false);
     expect(onPointChange).not.toHaveBeenCalled();
   });
 
-  it("can hide corner labels without hiding the images", () => {
+  it('can hide corner labels without hiding the images', () => {
     render(
       <ComparisonStage
         images={images.slice(0, 2)}
@@ -94,12 +100,12 @@ describe("ComparisonStage", () => {
       />,
     );
 
-    expect(screen.queryByText("A")).not.toBeInTheDocument();
-    expect(screen.queryByText("B")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("img")).toHaveLength(2);
+    expect(screen.queryByText('A')).not.toBeInTheDocument();
+    expect(screen.queryByText('B')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('img')).toHaveLength(2);
   });
 
-  it("reports the image that cannot be decoded", () => {
+  it('reports the image that cannot be decoded', () => {
     const onDecodeError = vi.fn();
 
     render(
@@ -113,7 +119,7 @@ describe("ComparisonStage", () => {
       />,
     );
 
-    fireEvent.error(screen.getByRole("img"));
+    fireEvent.error(screen.getByRole('img'));
 
     expect(onDecodeError).toHaveBeenCalledWith(images[0]);
   });

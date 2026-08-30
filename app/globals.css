@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 @theme inline {
   --color-background: var(--background);
@@ -26,7 +26,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.35);
   --radius-2xl: calc(var(--radius) * 1.8);
-  --font-sans: "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
+  --font-sans: 'Segoe UI Variable', 'Segoe UI', Arial, sans-serif;
 }
 
 :root {
@@ -71,8 +71,16 @@ body {
   margin: 0;
   color: var(--foreground);
   background:
-    radial-gradient(circle at 12% -8%, oklch(0.34 0.06 214 / 0.24), transparent 31rem),
-    radial-gradient(circle at 94% 12%, oklch(0.26 0.045 265 / 0.18), transparent 28rem),
+    radial-gradient(
+      circle at 12% -8%,
+      oklch(0.34 0.06 214 / 0.24),
+      transparent 31rem
+    ),
+    radial-gradient(
+      circle at 94% 12%,
+      oklch(0.26 0.045 265 / 0.18),
+      transparent 28rem
+    ),
     var(--background);
 }
 
@@ -124,8 +132,14 @@ button {
   color: var(--primary);
   border: 1px solid oklch(0.79 0.145 194 / 0.38);
   border-radius: 0.9rem;
-  background: linear-gradient(145deg, oklch(0.27 0.045 215), oklch(0.19 0.02 235));
-  box-shadow: inset 0 1px 0 oklch(0.95 0.02 210 / 0.08), 0 10px 30px var(--cyan-glow);
+  background: linear-gradient(
+    145deg,
+    oklch(0.27 0.045 215),
+    oklch(0.19 0.02 235)
+  );
+  box-shadow:
+    inset 0 1px 0 oklch(0.95 0.02 210 / 0.08),
+    0 10px 30px var(--cyan-glow);
 }
 
 .brand-mark svg {
@@ -185,8 +199,14 @@ button {
   padding: clamp(1rem, 2.2vw, 1.7rem);
   border: 1px solid var(--border);
   border-radius: 1.3rem;
-  background: linear-gradient(160deg, oklch(0.195 0.019 235 / 0.97), oklch(0.17 0.014 235 / 0.98));
-  box-shadow: 0 28px 80px oklch(0.04 0.015 240 / 0.36), inset 0 1px 0 oklch(0.9 0.02 210 / 0.045);
+  background: linear-gradient(
+    160deg,
+    oklch(0.195 0.019 235 / 0.97),
+    oklch(0.17 0.014 235 / 0.98)
+  );
+  box-shadow:
+    0 28px 80px oklch(0.04 0.015 240 / 0.36),
+    inset 0 1px 0 oklch(0.9 0.02 210 / 0.045);
 }
 
 .workspace-heading {
@@ -238,7 +258,11 @@ button {
     linear-gradient(-45deg, var(--stage-grid) 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, var(--stage-grid) 75%),
     linear-gradient(-45deg, transparent 75%, var(--stage-grid) 75%);
-  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+  background-position:
+    0 0,
+    0 9px,
+    9px -9px,
+    -9px 0;
   background-size: 18px 18px;
   box-shadow: inset 0 0 0 1px oklch(0.1 0.02 235 / 0.5);
 }
@@ -255,7 +279,7 @@ button {
   background:
     linear-gradient(135deg, oklch(0.25 0.05 210 / 0.32), transparent 50%),
     linear-gradient(315deg, oklch(0.24 0.04 270 / 0.22), transparent 50%);
-  content: "";
+  content: '';
 }
 
 .empty-divider,
@@ -264,7 +288,9 @@ button {
   z-index: 5;
   pointer-events: none;
   background: var(--primary);
-  box-shadow: 0 0 0 1px oklch(0.08 0.02 230 / 0.7), 0 0 16px var(--cyan-glow);
+  box-shadow:
+    0 0 0 1px oklch(0.08 0.02 230 / 0.7),
+    0 0 16px var(--cyan-glow);
 }
 
 .empty-divider--vertical {
@@ -293,7 +319,9 @@ button {
   border: 2px solid oklch(0.95 0.02 200 / 0.84);
   border-radius: 50%;
   background: var(--primary);
-  box-shadow: 0 0 0 5px oklch(0.1 0.02 230 / 0.7), 0 0 30px var(--cyan-glow);
+  box-shadow:
+    0 0 0 5px oklch(0.1 0.02 230 / 0.7),
+    0 0 30px var(--cyan-glow);
   transform: translate(-50%, -50%);
 }
 
@@ -317,7 +345,9 @@ button {
   border: 1px solid oklch(0.79 0.145 194 / 0.25);
   border-radius: 1.15rem;
   background: oklch(0.155 0.018 235 / 0.88);
-  box-shadow: 0 24px 70px oklch(0.04 0.02 235 / 0.46), inset 0 1px 0 oklch(0.94 0.02 210 / 0.055);
+  box-shadow:
+    0 24px 70px oklch(0.04 0.02 235 / 0.46),
+    inset 0 1px 0 oklch(0.94 0.02 210 / 0.055);
   backdrop-filter: blur(16px);
 }
 
@@ -387,7 +417,7 @@ button {
   vertical-align: 0.08rem;
   border-radius: 50%;
   background: var(--primary);
-  content: "";
+  content: '';
 }
 
 .workspace-shell--dragging {
@@ -633,6 +663,7 @@ button {
 }
 
 .status-message {
+  display: block;
   min-height: 1.1rem;
   margin: 0.55rem 0.2rem 0;
   color: var(--muted-foreground);
@@ -664,6 +695,11 @@ button {
 }
 
 .comparison-stage {
+  cursor: default;
+  touch-action: pan-y;
+}
+
+.comparison-stage[data-interactive='true'] {
   cursor: crosshair;
   touch-action: none;
 }
@@ -708,8 +744,8 @@ button {
 }
 
 .divider-handle {
-  top: var(--divider-y);
-  left: var(--divider-x);
+  top: clamp(1.8rem, var(--divider-y), calc(100% - 1.8rem));
+  left: clamp(1.8rem, var(--divider-x), calc(100% - 1.8rem));
   cursor: grab;
 }
 
@@ -728,7 +764,7 @@ button {
   top: 50%;
   left: 50%;
   background: currentColor;
-  content: "";
+  content: '';
   transform: translate(-50%, -50%);
 }
 
@@ -813,19 +849,26 @@ button {
   left: 0.75rem;
 }
 
-.comparison-stage[data-image-count="2"] .comparison-label--B,
-.comparison-stage[data-image-count="3"] .comparison-label--B {
+.comparison-stage[data-image-count='2'] .comparison-label--B {
   top: auto;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  left: auto;
+}
+
+.comparison-stage[data-image-count='3'] .comparison-label--B {
+  top: auto;
+  right: auto;
   bottom: 0.75rem;
   left: 0.75rem;
 }
 
-.comparison-stage[data-image-count="2"] .comparison-label--A {
+.comparison-stage[data-image-count='2'] .comparison-label--A {
   top: auto;
   bottom: 0.75rem;
 }
 
-.comparison-stage[data-image-count="3"] .comparison-label--C {
+.comparison-stage[data-image-count='3'] .comparison-label--C {
   top: auto;
   bottom: 0.75rem;
 }
@@ -936,7 +979,7 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .toolbar-group--actions [data-slot="button"] {
+  .toolbar-group--actions [data-slot='button'] {
     width: 100%;
   }
 
@@ -946,11 +989,18 @@ button {
 }
 
 @media (pointer: coarse) {
-  .comparison-toolbar [data-slot="button"],
+  .comparison-toolbar [data-slot='button'],
   .tray-icon-button,
-  .image-card-actions [data-slot="button"] {
+  .image-card-actions [data-slot='button'],
+  .image-card-copy select {
     min-width: 2.75rem;
     min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .toolbar-group--actions {
+    grid-template-columns: 1fr;
   }
 }
 

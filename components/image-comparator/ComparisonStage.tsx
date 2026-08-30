@@ -1,19 +1,17 @@
-"use client";
+'use client';
+
+/* oxlint-disable nextjs/no-img-element -- Local blob URLs must stay on-device and cannot use an image optimizer. */
 
 import type {
   CSSProperties,
   KeyboardEvent,
   PointerEvent as ReactPointerEvent,
-} from "react";
-import { useMemo, useRef } from "react";
+} from 'react';
+import { useMemo, useRef } from 'react';
 
-import {
-  clipPathsFor,
-  movePointByKey,
-  pointFromClient,
-} from "./geometry";
-import { SLOT_IDS } from "./files";
-import type { ImageItem, Point } from "./types";
+import { clipPathsFor, movePointByKey, pointFromClient } from './geometry';
+import { SLOT_IDS } from './files';
+import type { ImageItem, Point } from './types';
 
 type ComparisonStageProps = {
   images: ImageItem[];
@@ -25,9 +23,9 @@ type ComparisonStageProps = {
 };
 
 type StageStyle = CSSProperties & {
-  "--divider-x": string;
-  "--divider-y": string;
-  "--image-zoom": number;
+  '--divider-x': string;
+  '--divider-y': string;
+  '--image-zoom': number;
 };
 
 export function ComparisonStage({
@@ -49,9 +47,9 @@ export function ComparisonStage({
   const clips = clipPathsFor(orderedImages.length, point);
   const dividerY = orderedImages.length === 2 ? 50 : point.y;
   const stageStyle: StageStyle = {
-    "--divider-x": point.x + "%",
-    "--divider-y": dividerY + "%",
-    "--image-zoom": zoom / 100,
+    '--divider-x': point.x + '%',
+    '--divider-y': dividerY + '%',
+    '--image-zoom': zoom / 100,
   };
 
   const updateFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -89,23 +87,20 @@ export function ComparisonStage({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (!event.key.startsWith("Arrow")) {
-      return;
-    }
-
-    if (
-      orderedImages.length === 2 &&
-      (event.key === "ArrowUp" || event.key === "ArrowDown")
-    ) {
+    if (!event.key.startsWith('Arrow')) {
       return;
     }
 
     event.preventDefault();
-    const next = movePointByKey(
-      point,
-      event.key,
-      event.shiftKey ? 10 : 1,
-    );
+
+    if (
+      orderedImages.length === 2 &&
+      (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+    ) {
+      return;
+    }
+
+    const next = movePointByKey(point, event.key, event.shiftKey ? 10 : 1);
 
     if (next !== point) {
       onPointChange(next);
@@ -117,6 +112,7 @@ export function ComparisonStage({
       ref={stageRef}
       className="comparison-stage"
       data-image-count={orderedImages.length}
+      data-interactive={orderedImages.length >= 2}
       style={stageStyle}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -132,7 +128,7 @@ export function ComparisonStage({
             <img
               className="comparison-image"
               src={image.url}
-              alt={"Vergleichsbild " + image.slot + ": " + image.name}
+              alt={'Vergleichsbild ' + image.slot + ': ' + image.name}
               draggable={false}
               onError={() => onDecodeError(image)}
             />
@@ -150,12 +146,12 @@ export function ComparisonStage({
         <>
           <span
             className={[
-              "divider-line",
-              "divider-line--vertical",
-              orderedImages.length === 3 ? "divider-line--lower" : "",
+              'divider-line',
+              'divider-line--vertical',
+              orderedImages.length === 3 ? 'divider-line--lower' : '',
             ]
               .filter(Boolean)
-              .join(" ")}
+              .join(' ')}
             aria-hidden="true"
           />
           {orderedImages.length >= 3 ? (
@@ -168,11 +164,11 @@ export function ComparisonStage({
             type="button"
             className="divider-handle"
             aria-label={
-              "Trennpunkt, " +
+              'Trennpunkt, ' +
               Math.round(point.x) +
-              " Prozent horizontal, " +
+              ' Prozent horizontal, ' +
               Math.round(dividerY) +
-              " Prozent vertikal"
+              ' Prozent vertikal'
             }
             onKeyDown={handleKeyDown}
             onPointerDown={(event) => event.currentTarget.focus()}
@@ -185,10 +181,8 @@ export function ComparisonStage({
       {showLabels
         ? orderedImages.map((image) => (
             <span
-              className={
-                "comparison-label comparison-label--" + image.slot
-              }
-              key={"label-" + image.id}
+              className={'comparison-label comparison-label--' + image.slot}
+              key={'label-' + image.id}
             >
               <strong>{image.slot}</strong>
               <span>{image.name}</span>

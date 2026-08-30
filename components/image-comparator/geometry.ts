@@ -1,6 +1,6 @@
-import type { Point } from "./types";
+import type { Point } from './types';
 
-type RectLike = Pick<DOMRect, "left" | "top" | "width" | "height">;
+type RectLike = Pick<DOMRect, 'left' | 'top' | 'width' | 'height'>;
 
 const formatPercent = (value: number) =>
   Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
@@ -19,24 +19,20 @@ export function pointFromClient(
   };
 }
 
-export function movePointByKey(
-  point: Point,
-  key: string,
-  step: number,
-): Point {
-  if (key === "ArrowLeft") {
+export function movePointByKey(point: Point, key: string, step: number): Point {
+  if (key === 'ArrowLeft') {
     return { ...point, x: clampPercent(point.x - step) };
   }
 
-  if (key === "ArrowRight") {
+  if (key === 'ArrowRight') {
     return { ...point, x: clampPercent(point.x + step) };
   }
 
-  if (key === "ArrowUp") {
+  if (key === 'ArrowUp') {
     return { ...point, y: clampPercent(point.y - step) };
   }
 
-  if (key === "ArrowDown") {
+  if (key === 'ArrowDown') {
     return { ...point, y: clampPercent(point.y + step) };
   }
 
@@ -50,44 +46,33 @@ export function clipPathsFor(count: number, point: Point): string[] {
   const bottom = formatPercent(100 - point.y);
 
   if (count <= 1) {
-    return ["inset(0 0 0 0)"];
+    return ['inset(0 0 0 0)'];
   }
 
   if (count === 2) {
-    return [
-      "inset(0 " + right + "% 0 0)",
-      "inset(0 0 0 " + x + "%)",
-    ];
+    return ['inset(0 ' + right + '% 0 0)', 'inset(0 0 0 ' + x + '%)'];
   }
 
   if (count === 3) {
     return [
-      "inset(0 0 " + bottom + "% 0)",
-      "polygon(0 " +
-        y +
-        "%, " +
+      'inset(0 0 ' + bottom + '% 0)',
+      'polygon(0 ' + y + '%, ' + x + '% ' + y + '%, ' + x + '% 100%, 0 100%)',
+      'polygon(' +
         x +
-        "% " +
+        '% ' +
         y +
-        "%, " +
-        x +
-        "% 100%, 0 100%)",
-      "polygon(" +
-        x +
-        "% " +
+        '%, 100% ' +
         y +
-        "%, 100% " +
-        y +
-        "%, 100% 100%, " +
+        '%, 100% 100%, ' +
         x +
-        "% 100%)",
+        '% 100%)',
     ];
   }
 
   return [
-    "inset(0 " + right + "% " + bottom + "% 0)",
-    "inset(0 0 " + bottom + "% " + x + "%)",
-    "inset(" + y + "% 0 0 " + x + "%)",
-    "inset(" + y + "% " + right + "% 0 0)",
+    'inset(0 ' + right + '% ' + bottom + '% 0)',
+    'inset(0 0 ' + bottom + '% ' + x + '%)',
+    'inset(' + y + '% 0 0 ' + x + '%)',
+    'inset(' + y + '% ' + right + '% 0 0)',
   ];
 }

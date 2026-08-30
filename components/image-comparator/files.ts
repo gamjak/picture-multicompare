@@ -1,6 +1,6 @@
-import type { ImageItem, IntakeResult, SlotId } from "./types";
+import type { ImageItem, IntakeResult, SlotId } from './types';
 
-export const SLOT_IDS: SlotId[] = ["A", "B", "C", "D"];
+export const SLOT_IDS: SlotId[] = ['A', 'B', 'C', 'D'];
 
 export function admitImageFiles(
   files: Iterable<File>,
@@ -10,7 +10,7 @@ export function admitImageFiles(
   const rejectedNames: string[] = [];
 
   for (const file of files) {
-    if (file.type.startsWith("image/")) {
+    if (file.type.startsWith('image/')) {
       imageFiles.push(file);
     } else {
       rejectedNames.push(file.name);
@@ -37,9 +37,16 @@ export function createImageItem(file: File, slot: SlotId): ImageItem {
 }
 
 export function compactSlots(items: ImageItem[]): ImageItem[] {
-  return [...items]
-    .sort((a, b) => SLOT_IDS.indexOf(a.slot) - SLOT_IDS.indexOf(b.slot))
-    .map((item, index) => ({ ...item, slot: SLOT_IDS[index] }));
+  const compactedSlots = new Map(
+    [...items]
+      .sort((a, b) => SLOT_IDS.indexOf(a.slot) - SLOT_IDS.indexOf(b.slot))
+      .map((item, index) => [item.id, SLOT_IDS[index]]),
+  );
+
+  return items.map((item) => ({
+    ...item,
+    slot: compactedSlots.get(item.id) ?? item.slot,
+  }));
 }
 
 export function swapSlots(
@@ -47,17 +54,15 @@ export function swapSlots(
   from: SlotId,
   to: SlotId,
 ): ImageItem[] {
-  return items
-    .map((item) => {
-      if (item.slot === from) {
-        return { ...item, slot: to };
-      }
+  return items.map((item) => {
+    if (item.slot === from) {
+      return { ...item, slot: to };
+    }
 
-      if (item.slot === to) {
-        return { ...item, slot: from };
-      }
+    if (item.slot === to) {
+      return { ...item, slot: from };
+    }
 
-      return item;
-    })
-    .sort((a, b) => SLOT_IDS.indexOf(a.slot) - SLOT_IDS.indexOf(b.slot));
+    return item;
+  });
 }

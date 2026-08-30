@@ -1,26 +1,28 @@
-"use client";
+'use client';
 
-import { Crosshair, Images, ShieldCheck, Upload } from "lucide-react";
+/* oxlint-disable jsx-a11y/no-noninteractive-element-interactions -- File drag-and-drop supplements the keyboard-accessible picker buttons. */
+
+import { Crosshair, Images, ShieldCheck, Upload } from 'lucide-react';
 import {
   type DragEvent as ReactDragEvent,
   useEffect,
   useRef,
   useState,
-} from "react";
+} from 'react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 
-import { ComparisonStage } from "./ComparisonStage";
+import { ComparisonStage } from './ComparisonStage';
 import {
   admitImageFiles,
   compactSlots,
   createImageItem,
   SLOT_IDS,
   swapSlots,
-} from "./files";
-import { ImageTray } from "./ImageTray";
-import { Toolbar } from "./Toolbar";
-import type { ImageItem, IntakeResult, Point, SlotId } from "./types";
+} from './files';
+import { ImageTray } from './ImageTray';
+import { Toolbar } from './Toolbar';
+import type { ImageItem, IntakeResult, Point, SlotId } from './types';
 
 const INITIAL_POINT: Point = { x: 50, y: 50 };
 
@@ -28,26 +30,26 @@ function intakeMessage(result: IntakeResult): string {
   const parts: string[] = [];
 
   if (result.accepted.length === 1) {
-    parts.push("1 Bild wurde lokal geladen.");
+    parts.push('1 Bild wurde lokal geladen.');
   } else if (result.accepted.length > 1) {
-    parts.push(result.accepted.length + " Bilder wurden lokal geladen.");
+    parts.push(result.accepted.length + ' Bilder wurden lokal geladen.');
   }
 
   if (result.rejectedNames.length > 0) {
     parts.push(
-      "Nicht als Bild erkannt: " + result.rejectedNames.join(", ") + ".",
+      'Nicht als Bild erkannt: ' + result.rejectedNames.join(', ') + '.',
     );
   }
 
   if (result.overflowCount === 1) {
-    parts.push("1 weiteres Bild wurde nicht hinzugefügt.");
+    parts.push('1 weiteres Bild wurde nicht hinzugefügt.');
   } else if (result.overflowCount > 1) {
     parts.push(
-      result.overflowCount + " weitere Bilder wurden nicht hinzugefügt.",
+      result.overflowCount + ' weitere Bilder wurden nicht hinzugefügt.',
     );
   }
 
-  return parts.join(" ");
+  return parts.join(' ');
 }
 
 export function ImageComparator() {
@@ -55,13 +57,13 @@ export function ImageComparator() {
   const [point, setPoint] = useState<Point>(INITIAL_POINT);
   const [zoom, setZoom] = useState(100);
   const [showLabels, setShowLabels] = useState(true);
-  const [liveMessage, setLiveMessage] = useState("");
+  const [liveMessage, setLiveMessage] = useState('');
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
   const liveUrls = useRef(new Set<string>());
   const canFullscreen =
-    typeof document !== "undefined" && document.fullscreenEnabled;
+    typeof document !== 'undefined' && document.fullscreenEnabled;
 
   const revokeUrl = (url: string) => {
     if (!liveUrls.current.has(url)) {
@@ -98,7 +100,7 @@ export function ImageComparator() {
     }
 
     setLiveMessage(
-      intakeMessage(result) || "Es wurden keine neuen Bilder ausgewählt.",
+      intakeMessage(result) || 'Es wurden keine neuen Bilder ausgewählt.',
     );
   };
 
@@ -107,12 +109,12 @@ export function ImageComparator() {
     setImages((current) =>
       compactSlots(current.filter((entry) => entry.id !== image.id)),
     );
-    setLiveMessage(image.name + " wurde entfernt.");
+    setLiveMessage(image.name + ' wurde entfernt.');
   };
 
   const replaceImage = (image: ImageItem, file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setLiveMessage(file.name + " wurde nicht als Bild erkannt.");
+    if (!file.type.startsWith('image/')) {
+      setLiveMessage(file.name + ' wurde nicht als Bild erkannt.');
       return;
     }
 
@@ -120,11 +122,9 @@ export function ImageComparator() {
     liveUrls.current.add(replacement.url);
     revokeUrl(image.url);
     setImages((current) =>
-      current.map((entry) =>
-        entry.id === image.id ? replacement : entry,
-      ),
+      current.map((entry) => (entry.id === image.id ? replacement : entry)),
     );
-    setLiveMessage(image.name + " wurde durch " + file.name + " ersetzt.");
+    setLiveMessage(image.name + ' wurde durch ' + file.name + ' ersetzt.');
   };
 
   const handleDecodeError = (image: ImageItem) => {
@@ -132,26 +132,32 @@ export function ImageComparator() {
     setImages((current) =>
       compactSlots(current.filter((entry) => entry.id !== image.id)),
     );
-    setLiveMessage(image.name + " konnte nicht gelesen werden.");
+    setLiveMessage(image.name + ' konnte nicht gelesen werden.');
   };
 
   const resetView = () => {
     setPoint(INITIAL_POINT);
     setZoom(100);
     setShowLabels(true);
-    setLiveMessage("Die Ansicht wurde zurückgesetzt.");
+    setImages((current) =>
+      current.map((image, index) => ({
+        ...image,
+        slot: SLOT_IDS[index],
+      })),
+    );
+    setLiveMessage('Die Ansicht wurde zurückgesetzt.');
   };
 
   const openFullscreen = async () => {
     if (!workspaceRef.current?.requestFullscreen) {
-      setLiveMessage("Vollbild wird von diesem Browser nicht unterstützt.");
+      setLiveMessage('Vollbild wird von diesem Browser nicht unterstützt.');
       return;
     }
 
     try {
       await workspaceRef.current.requestFullscreen();
     } catch {
-      setLiveMessage("Vollbild konnte nicht geöffnet werden.");
+      setLiveMessage('Vollbild konnte nicht geöffnet werden.');
     }
   };
 
@@ -174,9 +180,13 @@ export function ImageComparator() {
           </div>
         </div>
 
-        <div className="privacy-note">
+        <div
+          className="privacy-note"
+          role="note"
+          aria-label="Bleibt auf diesem Gerät. Keine Uploads, keine Speicherung."
+        >
           <ShieldCheck aria-hidden="true" />
-          <span>
+          <span aria-hidden="true">
             <strong>Bleibt auf diesem Gerät</strong>
             <small>Keine Uploads · keine Speicherung</small>
           </span>
@@ -186,8 +196,8 @@ export function ImageComparator() {
       <section
         ref={workspaceRef}
         className={
-          "workspace-shell" +
-          (isDraggingFiles ? " workspace-shell--dragging" : "")
+          'workspace-shell' +
+          (isDraggingFiles ? ' workspace-shell--dragging' : '')
         }
         aria-label="Bildvergleich"
         onDragEnter={(event) => {
@@ -207,14 +217,16 @@ export function ImageComparator() {
             <span className="eyebrow">Lokaler Vergleich</span>
             <h2>
               {images.length === 0
-                ? "Bis zu vier Perspektiven. Ein Blick."
-                : images.length + " Bilder im direkten Vergleich"}
+                ? 'Bis zu vier Perspektiven. Ein Blick.'
+                : images.length === 1
+                  ? '1 Bild bereit für den Vergleich'
+                  : images.length + ' Bilder im direkten Vergleich'}
             </h2>
           </div>
           <p>
             {images.length === 0
-              ? "Lege Varianten deckungsgleich übereinander und verschiebe den Trenner genau dorthin, wo du Unterschiede prüfen möchtest."
-              : "Alle Ebenen sind gleich skaliert und zentriert. Verschiebe den Trenner per Maus, Touch oder Pfeiltasten."}
+              ? 'Lege Varianten deckungsgleich übereinander und verschiebe den Trenner genau dorthin, wo du Unterschiede prüfen möchtest.'
+              : 'Alle Ebenen sind gleich skaliert und zentriert. Verschiebe den Trenner per Maus, Touch oder Pfeiltasten.'}
           </p>
         </div>
 
@@ -291,18 +303,19 @@ export function ImageComparator() {
           type="file"
           accept="image/*"
           multiple
+          tabIndex={-1}
           aria-label="Lokale Bilder auswählen"
           onChange={(event) => {
             if (event.currentTarget.files) {
               addFiles(event.currentTarget.files);
             }
-            event.currentTarget.value = "";
+            event.currentTarget.value = '';
           }}
         />
 
-        <p className="status-message" role="status" aria-live="polite">
+        <output className="status-message" aria-live="polite">
           {liveMessage}
-        </p>
+        </output>
 
         <footer className="workspace-footer">
           {images.length === 0 ? (
