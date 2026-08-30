@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  alignmentIsReliable,
   alignGrayImages,
   detectFeatures,
   rgbaToGray,
+  rotationBetweenDirections,
   type GrayImage,
 } from './image-analysis';
 
@@ -106,6 +108,49 @@ const transformedFixture = (
 };
 
 describe('local image feature analysis', () => {
+  it('requires more than three geometrically consistent matches', () => {
+    expect(
+      alignmentIsReliable({
+        matchCount: 3,
+        inlierCount: 3,
+        confidence: 0.95,
+      }),
+    ).toBe(false);
+    expect(
+      alignmentIsReliable({
+        matchCount: 8,
+        inlierCount: 6,
+        confidence: 0.82,
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects a weak inlier ratio or confidence even with many matches', () => {
+    expect(
+      alignmentIsReliable({
+        matchCount: 12,
+        inlierCount: 5,
+        confidence: 0.9,
+      }),
+    ).toBe(false);
+    expect(
+      alignmentIsReliable({
+        matchCount: 10,
+        inlierCount: 8,
+        confidence: 0.61,
+      }),
+    ).toBe(false);
+  });
+
+  it('uses the short rotation across the minus-pi/pi boundary', () => {
+    const rotation = rotationBetweenDirections(
+      (-176 * Math.PI) / 180,
+      (179 * Math.PI) / 180,
+    );
+
+    expect(rotation).toBeCloseTo((5 * Math.PI) / 180, 8);
+  });
+
   it('converts RGBA pixels to normalized perceptual luminance', () => {
     const gray = rgbaToGray(
       new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255]),

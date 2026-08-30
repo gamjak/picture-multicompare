@@ -78,6 +78,26 @@ describe('AlignmentControls', () => {
     expect(screen.getByText('Mindestens 2 Bilder')).toBeInTheDocument();
   });
 
+  it('keeps the summary in progress until every target has a result', () => {
+    render(
+      <AlignmentControls
+        {...baseProps}
+        images={[
+          ...images,
+          {
+            id: 'C',
+            name: 'detail.png',
+            type: 'image/png',
+            url: 'blob:C',
+            slot: 'C',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('Wird ausgerichtet …')).toBeInTheDocument();
+  });
+
   it('keeps an uncertain target centered and offers the manual fallback', async () => {
     const user = userEvent.setup();
     const onBeginManual = vi.fn();
@@ -114,7 +134,10 @@ describe('AlignmentControls', () => {
         {...baseProps}
         entriesByImageId={{}}
         manualSession={{
+          referenceId: 'A',
+          referenceUrl: 'blob:A',
           targetId: 'B',
+          targetUrl: 'blob:B',
           phase: 'ready',
           referencePoints: [
             { x: 0.1, y: 0.1 },
@@ -133,7 +156,8 @@ describe('AlignmentControls', () => {
 
     expect(
       screen.getByText('Alle 3 Punktpaare sind markiert.'),
-    ).toBeInTheDocument();
+    ).toHaveAttribute('aria-live', 'polite');
+    expect(screen.getByText(/Pfeiltasten/)).toBeInTheDocument();
     await user.click(
       screen.getByRole('button', { name: 'Ausrichtung anwenden' }),
     );

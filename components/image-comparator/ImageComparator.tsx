@@ -101,6 +101,17 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
     liveUrls.current.delete(url);
   };
 
+  const discardMetrics = (imageId: string) => {
+    setMetricsById((current) => {
+      if (!current[imageId]) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[imageId];
+      return next;
+    });
+  };
+
   useEffect(
     () => () => {
       for (const url of liveUrls.current) {
@@ -133,6 +144,7 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
 
   const removeImage = (image: ImageItem) => {
     revokeUrl(image.url);
+    discardMetrics(image.id);
     setImages((current) =>
       compactSlots(current.filter((entry) => entry.id !== image.id)),
     );
@@ -148,6 +160,7 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
     const replacement = createImageItem(file, image.slot);
     liveUrls.current.add(replacement.url);
     revokeUrl(image.url);
+    discardMetrics(image.id);
     setImages((current) =>
       current.map((entry) => (entry.id === image.id ? replacement : entry)),
     );
@@ -156,6 +169,7 @@ export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
 
   const handleDecodeError = (image: ImageItem) => {
     revokeUrl(image.url);
+    discardMetrics(image.id);
     setImages((current) =>
       compactSlots(current.filter((entry) => entry.id !== image.id)),
     );

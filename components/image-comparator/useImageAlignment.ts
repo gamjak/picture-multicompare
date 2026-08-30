@@ -79,8 +79,16 @@ export function useImageAlignment({
       ),
     [entriesByImageId, reference, targetById],
   );
+  const manualTarget = manualSession
+    ? targetById.get(manualSession.targetId)
+    : undefined;
   const visibleManualSession =
-    manualSession && reference && targetById.has(manualSession.targetId)
+    manualSession &&
+    reference &&
+    manualTarget &&
+    manualSession.referenceId === reference.id &&
+    manualSession.referenceUrl === reference.url &&
+    manualSession.targetUrl === manualTarget.url
       ? manualSession
       : null;
 
@@ -220,11 +228,15 @@ export function useImageAlignment({
 
   const beginManual = useCallback(
     (targetId: string) => {
-      if (!reference || !targets.some((target) => target.id === targetId)) {
+      const target = targets.find((image) => image.id === targetId);
+      if (!reference || !target) {
         return;
       }
       setManualSession({
+        referenceId: reference.id,
+        referenceUrl: reference.url,
         targetId,
+        targetUrl: target.url,
         phase: 'reference',
         referencePoints: [],
         targetPoints: [],
@@ -236,7 +248,13 @@ export function useImageAlignment({
   const recordManualPoint = useCallback(
     (imageId: string, point: NormalizedPoint) => {
       setManualSession((current) => {
-        if (!current || !reference) {
+        if (
+          !current ||
+          !reference ||
+          current.referenceId !== reference.id ||
+          current.referenceUrl !== reference.url ||
+          targetById.get(current.targetId)?.url !== current.targetUrl
+        ) {
           return current;
         }
         const normalized = {
@@ -244,7 +262,7 @@ export function useImageAlignment({
           y: clampNormalized(point.y),
         };
 
-        if (current.phase === 'reference' && imageId === reference.id) {
+        if (current.phase === 'reference' && imageId === current.referenceId) {
           const referencePoints = [
             ...current.referencePoints,
             normalized,
@@ -273,7 +291,7 @@ export function useImageAlignment({
         return current;
       });
     },
-    [reference],
+    [reference, targetById],
   );
 
   const undoManualPoint = useCallback(() => {

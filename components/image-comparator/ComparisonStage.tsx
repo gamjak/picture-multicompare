@@ -63,6 +63,9 @@ type Marker = {
 
 const EMPTY_ENTRIES: Record<string, AlignmentEntry> = {};
 const EMPTY_METRICS: Record<string, ImageMetrics> = {};
+const CENTER_POINT: NormalizedPoint = { x: 0.5, y: 0.5 };
+
+const clampNormalized = (value: number) => Math.min(1, Math.max(0, value));
 
 const zoomPoint = (point: Point, size: StageSize, zoom: number): Point => {
   const scale = zoom / 100;
@@ -102,10 +105,13 @@ export function ComparisonStage({
   onCancelManual,
 }: ComparisonStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
+  const manualCursorRef = useRef<HTMLButtonElement>(null);
   const [stageSize, setStageSize] = useState<StageSize>({
     width: 0,
     height: 0,
   });
+  const [manualCursor, setManualCursor] =
+    useState<NormalizedPoint>(CENTER_POINT);
   const orderedImages = useMemo(
     () =>
       [...images].sort(
@@ -122,7 +128,7 @@ export function ComparisonStage({
   const referenceMetrics = referenceId ? metricsById[referenceId] : undefined;
   const manualImageId = manualSession
     ? manualSession.phase === 'reference'
-      ? referenceId
+      ? manualSession.referenceId
       : manualSession.targetId
     : null;
 
@@ -251,9 +257,12 @@ export function ComparisonStage({
     }
   }
 
-  if (manualSession && referenceId) {
+  if (manualSession) {
     manualSession.referencePoints.forEach((manualPoint, index) => {
-      const markerPoint = displayedPoint(referenceId, manualPoint);
+      const markerPoint = displayedPoint(
+        manualSession.referenceId,
+        manualPoint,
+      );
       if (markerPoint) {
         markers.push({
           key: `manual-reference-${index}`,
@@ -278,21 +287,91 @@ export function ComparisonStage({
     });
   }
 
+  const manualCursorPoint =
+    manualSession &&
+    manualSession.phase !== 'ready' &&
+    manualImageId &&
+    onManualPoint
+      ? displayedPoint(manualImageId, manualCursor)
+      : null;
+  const hasManualCursor = Boolean(manualCursorPoint);
+  const manualImage = manualImageId
+    ? orderedImages.find((image) => image.id === manualImageId)
+    : undefined;
+  const manualCursorLabel = manualImage
+    ? `Punktposition für Bild ${manualImage.slot}, ${Math.round(
+        manualCursor.x * 100,
+      )} Prozent horizontal, ${Math.round(
+        manualCursor.y * 100,
+      )} Prozent vertikal`
+    : '';
+
+  useEffect(() => {
+    if (hasManualCursor) {
+      manualCursorRef.current?.focus();
+    }
+  }, [hasManualCursor, manualSession?.referenceId, manualSession?.targetId]);
+
+  const submitManualCursor = () => {
+    if (
+      !manualSession ||
+      manualSession.phase === 'ready' ||
+      !manualImageId ||
+      !onManualPoint
+    ) {
+      return;
+    }
+
+    onManualPoint(manualImageId, manualCursor);
+    setManualCursor(CENTER_POINT);
+  };
+
+  const handleManualCursorKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+  ) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      submitManualCursor();
+      return;
+    }
+    if (!event.key.startsWith('Arrow')) {
+      return;
+    }
+
+    event.preventDefault();
+    const step = event.shiftKey ? 0.05 : 0.01;
+    setManualCursor((current) => ({
+      x: clampNormalized(
+        current.x +
+          (event.key === 'ArrowLeft'
+            ? -step
+            : event.key === 'ArrowRight'
+              ? step
+              : 0),
+      ),
+      y: clampNormalized(
+        current.y +
+          (event.key === 'ArrowUp'
+            ? -step
+            : event.key === 'ArrowDown'
+              ? step
+              : 0),
+      ),
+    }));
+  };
+
   const recordManualPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (
       !manualSession ||
       manualSession.phase === 'ready' ||
-      !referenceId ||
+      !manualImageId ||
       !stageRef.current ||
       !onManualPoint
     ) {
       return;
     }
 
-    const imageId =
-      manualSession.phase === 'reference'
-        ? referenceId
-        : manualSession.targetId;
+    const imageId = manualImageId;
     const metrics = metricsById[imageId];
     if (!metrics) {
       return;
@@ -328,6 +407,7 @@ export function ComparisonStage({
     }
 
     onManualPoint(imageId, normalized);
+    setManualCursor(CENTER_POINT);
   };
 
   const updateFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -351,6 +431,9 @@ export function ComparisonStage({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
     if (manualSession) {
       recordManualPoint(event);
       return;
@@ -460,6 +543,33 @@ export function ComparisonStage({
           {marker.number}
         </span>
       ))}
+
+      {manualCursorPoint && manualImage ? (
+        <>
+          <button
+            ref={manualCursorRef}
+            type="button"
+            className="manual-point-cursor"
+            style={{ left: manualCursorPoint.x, top: manualCursorPoint.y }}
+            aria-label={manualCursorLabel}
+            onKeyDown={handleManualCursorKeyDown}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              submitManualCursor();
+            }}
+          >
+            <span aria-hidden="true" />
+          </button>
+          <span className="sr-only" aria-live="polite" aria-atomic="true">
+            {`Punktposition Bild ${manualImage.slot}: ${Math.round(
+              manualCursor.x * 100,
+            )} Prozent horizontal, ${Math.round(
+              manualCursor.y * 100,
+            )} Prozent vertikal`}
+          </span>
+        </>
+      ) : null}
 
       {orderedImages.length === 1 ? (
         <p className="comparison-hint">

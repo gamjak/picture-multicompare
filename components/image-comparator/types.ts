@@ -72,7 +72,10 @@ export type AlignmentEntry =
     });
 
 export type ManualAlignmentSession = {
+  referenceId: string;
+  referenceUrl: string;
   targetId: string;
+  targetUrl: string;
   phase: 'reference' | 'target' | 'ready';
   referencePoints: NormalizedPoint[];
   targetPoints: NormalizedPoint[];

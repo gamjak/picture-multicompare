@@ -51,9 +51,37 @@ const MATCH_RATIO = 0.78;
 const MAX_ROTATION = (15 * Math.PI) / 180;
 const MIN_SCALE = 0.75;
 const MAX_SCALE = 1.33;
+const MIN_RELIABLE_INLIERS = 5;
+const MIN_INLIER_RATIO = 0.5;
+const MIN_CONFIDENCE = 0.68;
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
+
+export function rotationBetweenDirections(
+  targetAngle: number,
+  sourceAngle: number,
+) {
+  const difference = targetAngle - sourceAngle;
+  return Math.atan2(Math.sin(difference), Math.cos(difference));
+}
+
+export function alignmentIsReliable({
+  matchCount,
+  inlierCount,
+  confidence,
+}: {
+  matchCount: number;
+  inlierCount: number;
+  confidence: number;
+}) {
+  return (
+    matchCount >= MIN_RELIABLE_INLIERS &&
+    inlierCount >= MIN_RELIABLE_INLIERS &&
+    inlierCount / matchCount >= MIN_INLIER_RATIO &&
+    confidence >= MIN_CONFIDENCE
+  );
+}
 
 export function rgbaToGray(rgba: Uint8ClampedArray): Float32Array {
   const pixels = new Float32Array(Math.floor(rgba.length / 4));
@@ -426,7 +454,10 @@ function twoPointSimilarity(
   }
 
   const scale = targetLength / sourceLength;
-  const rotation = Math.atan2(targetY, targetX) - Math.atan2(sourceY, sourceX);
+  const rotation = rotationBetweenDirections(
+    Math.atan2(targetY, targetX),
+    Math.atan2(sourceY, sourceX),
+  );
   if (
     scale < MIN_SCALE ||
     scale > MAX_SCALE ||
@@ -516,7 +547,7 @@ export function alignGrayImages(
   }
 
   const matches = matchFeatures(referenceFeatures, targetFeatures);
-  if (matches.length < 3) {
+  if (matches.length < MIN_RELIABLE_INLIERS) {
     return { status: 'failed', reason: 'ambiguous' };
   }
 
@@ -625,6 +656,16 @@ export function alignGrayImages(
     0,
     1,
   );
+
+  if (
+    !alignmentIsReliable({
+      matchCount: matches.length,
+      inlierCount: refinedInliers.length,
+      confidence,
+    })
+  ) {
+    return { status: 'failed', reason: 'ambiguous' };
+  }
 
   return {
     status: 'aligned',

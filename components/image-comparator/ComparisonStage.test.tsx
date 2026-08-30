@@ -132,6 +132,31 @@ describe('ComparisonStage', () => {
     expect(onPointChange).not.toHaveBeenCalled();
   });
 
+  it('ignores non-primary pointer buttons on the comparison stage', () => {
+    const onPointChange = vi.fn();
+
+    render(
+      <ComparisonStage
+        images={images.slice(0, 2)}
+        point={{ x: 50, y: 50 }}
+        zoom={100}
+        showLabels
+        onPointChange={onPointChange}
+        onDecodeError={vi.fn()}
+      />,
+    );
+
+    fireEvent.pointerDown(screen.getByLabelText('Bildvergleich'), {
+      button: 2,
+      buttons: 2,
+      clientX: 500,
+      clientY: 300,
+      pointerId: 1,
+    });
+
+    expect(onPointChange).not.toHaveBeenCalled();
+  });
+
   it('can hide corner labels without hiding the images', () => {
     render(
       <ComparisonStage
@@ -252,7 +277,10 @@ describe('ComparisonStage', () => {
         entriesByImageId={{}}
         metricsById={metricsById}
         manualSession={{
+          referenceId: 'A',
+          referenceUrl: 'blob:A',
           targetId: 'B',
+          targetUrl: 'blob:B',
           phase: 'reference',
           referencePoints: [],
           targetPoints: [],
@@ -273,6 +301,51 @@ describe('ComparisonStage', () => {
     expect(onManualPoint).toHaveBeenCalledWith('A', { x: 0.25, y: 0.25 });
   });
 
+  it('positions and records a manual point with the keyboard', () => {
+    mockStageRect();
+    const onManualPoint = vi.fn();
+    render(
+      <ComparisonStage
+        images={images.slice(0, 2)}
+        point={{ x: 50, y: 50 }}
+        zoom={100}
+        showLabels
+        alignmentEnabled
+        referenceId="A"
+        entriesByImageId={{}}
+        metricsById={metricsById}
+        manualSession={{
+          referenceId: 'A',
+          referenceUrl: 'blob:A',
+          targetId: 'B',
+          targetUrl: 'blob:B',
+          phase: 'reference',
+          referencePoints: [],
+          targetPoints: [],
+        }}
+        onPointChange={vi.fn()}
+        onDecodeError={vi.fn()}
+        onManualPoint={onManualPoint}
+      />,
+    );
+
+    const cursor = screen.getByRole('button', {
+      name: /Punktposition für Bild A/,
+    });
+    expect(cursor).toHaveFocus();
+    expect(cursor).toHaveAccessibleName(/50 Prozent horizontal/);
+    fireEvent.keyDown(cursor, { key: 'ArrowLeft', shiftKey: true });
+    expect(cursor).toHaveAccessibleName(/45 Prozent horizontal/);
+    expect(
+      screen.getByText(
+        'Punktposition Bild A: 45 Prozent horizontal, 50 Prozent vertikal',
+      ),
+    ).toHaveAttribute('aria-live', 'polite');
+    fireEvent.keyDown(cursor, { key: 'Enter' });
+
+    expect(onManualPoint).toHaveBeenCalledWith('A', { x: 0.45, y: 0.5 });
+  });
+
   it('shows only the image currently being marked during manual alignment', () => {
     mockStageRect();
     const props = {
@@ -291,7 +364,10 @@ describe('ComparisonStage', () => {
       <ComparisonStage
         {...props}
         manualSession={{
+          referenceId: 'A',
+          referenceUrl: 'blob:A',
           targetId: 'B',
+          targetUrl: 'blob:B',
           phase: 'reference',
           referencePoints: [],
           targetPoints: [],
@@ -314,7 +390,10 @@ describe('ComparisonStage', () => {
       <ComparisonStage
         {...props}
         manualSession={{
+          referenceId: 'A',
+          referenceUrl: 'blob:A',
           targetId: 'B',
+          targetUrl: 'blob:B',
           phase: 'target',
           referencePoints: [
             { x: 0.1, y: 0.1 },

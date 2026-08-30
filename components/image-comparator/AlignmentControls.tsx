@@ -53,7 +53,7 @@ function summaryText(
   }
   if (
     entries.some((entry) => entry.status === 'analyzing') ||
-    entries.length === 0
+    entries.length < imageCount - 1
   ) {
     return 'Wird ausgerichtet …';
   }
@@ -104,7 +104,9 @@ export function AlignmentControls({
     .map((image) => entriesByImageId[image.id])
     .filter((entry): entry is AlignmentEntry => Boolean(entry));
   const hasAlignedTarget = entries.some((entry) => entry.status === 'aligned');
-  const isAnalyzing = entries.some((entry) => entry.status === 'analyzing');
+  const isAnalyzing =
+    entries.length < targets.length ||
+    entries.some((entry) => entry.status === 'analyzing');
   const targetInManual = manualSession
     ? targets.find((image) => image.id === manualSession.targetId)
     : undefined;
@@ -232,10 +234,13 @@ export function AlignmentControls({
               {Math.min(6, selectedPointCount + 1)}/6
             </span>
             <div>
-              <strong>{manualInstruction}</strong>
+              <strong aria-live="polite" aria-atomic="true">
+                {manualInstruction}
+              </strong>
               <small>
-                Wähle gut erkennbare Ecken oder Kantenkreuzungen, möglichst weit
-                voneinander entfernt.
+                Klicke ins Bild oder bewege das Fadenkreuz mit den Pfeiltasten
+                und bestätige mit Eingabe. Wähle gut erkennbare Punkte,
+                möglichst weit voneinander entfernt.
               </small>
               {manualSession.error === 'spread' ? (
                 <em>

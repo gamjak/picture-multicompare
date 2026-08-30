@@ -248,4 +248,44 @@ describe('useImageAlignment', () => {
     expect(result.current.manualSession?.error).toBe('spread');
     expect(result.current.entriesByImageId['image-b']?.status).toBe('failed');
   });
+
+  it('cancels a manual session when the reference image is replaced', async () => {
+    const analyze = vi.fn(
+      async (): Promise<AlignmentResult> => ({
+        status: 'failed',
+        reason: 'ambiguous',
+      }),
+    );
+    const { result, rerender } = renderHook(
+      ({ activeImages }) =>
+        useImageAlignment({
+          images: activeImages,
+          enabled: true,
+          metricsById,
+          analyze,
+        }),
+      { initialProps: { activeImages: images } },
+    );
+    await waitFor(() =>
+      expect(result.current.entriesByImageId['image-b']?.status).toBe('failed'),
+    );
+
+    act(() => result.current.beginManual('image-b'));
+    act(() => result.current.recordManualPoint('image-a', { x: 0.1, y: 0.1 }));
+    expect(result.current.manualSession?.referencePoints).toHaveLength(1);
+
+    rerender({
+      activeImages: [
+        {
+          ...images[0],
+          id: 'image-a-new',
+          name: 'A-neu.png',
+          url: 'blob:a-new',
+        },
+        images[1],
+      ],
+    });
+
+    expect(result.current.manualSession).toBeNull();
+  });
 });
