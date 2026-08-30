@@ -1,12 +1,29 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImageComparator } from './ImageComparator';
+import type { AlignmentResult } from './image-analysis';
 
 const imageFile = (name: string) =>
   new File(['pixels'], name, { type: 'image/png' });
 const revokeObjectURLMock = vi.fn();
+const automaticAlignment: AlignmentResult = {
+  status: 'aligned',
+  transform: {
+    scale: 1,
+    rotation: 0,
+    translateX: -12,
+    translateY: 4,
+  },
+  anchors: [
+    { reference: { x: 0.1, y: 0.1 }, target: { x: 0.11, y: 0.095 } },
+    { reference: { x: 0.8, y: 0.15 }, target: { x: 0.81, y: 0.145 } },
+    { reference: { x: 0.2, y: 0.8 }, target: { x: 0.21, y: 0.795 } },
+  ],
+  confidence: 0.9,
+  rmsError: 0.6,
+};
 
 beforeEach(() => {
   let id = 0;
@@ -188,5 +205,54 @@ describe('ImageComparator', () => {
 
     expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:a.png');
     expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:b.png');
+  });
+
+  it('automatically aligns two images and can switch the result off and on', async () => {
+    const user = userEvent.setup();
+    const analyzePair = vi.fn(async () => automaticAlignment);
+    render(<ImageComparator analyzePair={analyzePair} />);
+
+    await user.upload(screen.getByLabelText('Lokale Bilder auswählen'), [
+      imageFile('a.png'),
+      imageFile('b.png'),
+    ]);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('3 Punkte gefunden · Ausrichtung aktiv'),
+      ).toBeInTheDocument(),
+    );
+    const toggle = screen.getByRole('switch', {
+      name: 'Automatisch ausrichten',
+    });
+    expect(toggle).toBeChecked();
+
+    await user.click(toggle);
+    expect(screen.getByText('Ausrichtung aus')).toBeInTheDocument();
+    await user.click(toggle);
+    expect(
+      screen.getByText('3 Punkte gefunden · Ausrichtung aktiv'),
+    ).toBeInTheDocument();
+    expect(analyzePair).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets the automatic alignment switch to on', async () => {
+    const user = userEvent.setup();
+    render(<ImageComparator analyzePair={async () => automaticAlignment} />);
+    await user.upload(screen.getByLabelText('Lokale Bilder auswählen'), [
+      imageFile('a.png'),
+      imageFile('b.png'),
+    ]);
+    const toggle = screen.getByRole('switch', {
+      name: 'Automatisch ausrichten',
+    });
+    await user.click(toggle);
+    expect(toggle).not.toBeChecked();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Ansicht zurücksetzen' }),
+    );
+
+    expect(toggle).toBeChecked();
   });
 });

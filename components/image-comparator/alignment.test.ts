@@ -125,17 +125,11 @@ describe('similarity alignment geometry', () => {
 
   it('computes centered contain rectangles with letterbox gutters', () => {
     expect(
-      fitContainRect(
-        { width: 1200, height: 800 },
-        { width: 900, height: 900 },
-      ),
+      fitContainRect({ width: 1200, height: 800 }, { width: 900, height: 900 }),
     ).toEqual({ x: 0, y: 150, width: 900, height: 600, scale: 0.75 });
 
     expect(
-      fitContainRect(
-        { width: 800, height: 1200 },
-        { width: 900, height: 600 },
-      ),
+      fitContainRect({ width: 800, height: 1200 }, { width: 900, height: 600 }),
     ).toEqual({ x: 250, y: 0, width: 400, height: 600, scale: 0.5 });
   });
 

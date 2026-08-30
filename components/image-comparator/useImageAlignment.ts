@@ -1,18 +1,9 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { estimateSimilarity, triangleSpread } from './alignment';
-import {
-  analyzeImagePair,
-  type AlignmentResult,
-} from './image-analysis';
+import { analyzeImagePair, type AlignmentResult } from './image-analysis';
 import { SLOT_IDS } from './files';
 import type {
   AlignmentEntry,
@@ -38,8 +29,7 @@ type EntryMap = Record<string, AlignmentEntry>;
 
 const orderedImages = (images: ImageItem[]) =>
   [...images].sort(
-    (left, right) =>
-      SLOT_IDS.indexOf(left.slot) - SLOT_IDS.indexOf(right.slot),
+    (left, right) => SLOT_IDS.indexOf(left.slot) - SLOT_IDS.indexOf(right.slot),
   );
 
 const entryMatchesPair = (
@@ -138,7 +128,7 @@ export function useImageAlignment({
               const currentTarget = targetById.get(targetId);
               return Boolean(
                 currentTarget &&
-                  entryMatchesPair(entry, reference, currentTarget),
+                entryMatchesPair(entry, reference, currentTarget),
               );
             }),
           );
@@ -255,7 +245,10 @@ export function useImageAlignment({
         };
 
         if (current.phase === 'reference' && imageId === reference.id) {
-          const referencePoints = [...current.referencePoints, normalized].slice(0, 3);
+          const referencePoints = [
+            ...current.referencePoints,
+            normalized,
+          ].slice(0, 3);
           return {
             ...current,
             referencePoints,
@@ -265,7 +258,10 @@ export function useImageAlignment({
         }
 
         if (current.phase === 'target' && imageId === current.targetId) {
-          const targetPoints = [...current.targetPoints, normalized].slice(0, 3);
+          const targetPoints = [...current.targetPoints, normalized].slice(
+            0,
+            3,
+          );
           return {
             ...current,
             targetPoints,
@@ -338,10 +334,12 @@ export function useImageAlignment({
       return false;
     }
 
-    const referencePoints = visibleManualSession.referencePoints.map((point) => ({
-      x: point.x * referenceMetrics.width,
-      y: point.y * referenceMetrics.height,
-    }));
+    const referencePoints = visibleManualSession.referencePoints.map(
+      (point) => ({
+        x: point.x * referenceMetrics.width,
+        y: point.y * referenceMetrics.height,
+      }),
+    );
     const targetPoints = visibleManualSession.targetPoints.map((point) => ({
       x: point.x * targetMetrics.width,
       y: point.y * targetMetrics.height,
@@ -375,13 +373,7 @@ export function useImageAlignment({
     }));
     setManualSession(null);
     return true;
-  }, [
-    visibleManualSession,
-    metricsById,
-    reference,
-    targets,
-    updateEntries,
-  ]);
+  }, [visibleManualSession, metricsById, reference, targets, updateEntries]);
 
   const isApplied = useCallback(
     (imageId: string) =>

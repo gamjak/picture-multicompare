@@ -40,8 +40,7 @@ export function triangleSpread(points: Point[]): number {
         const b = points[second];
         const c = points[third];
         const doubleArea = Math.abs(
-          (b.x - a.x) * (c.y - a.y) -
-            (b.y - a.y) * (c.x - a.x),
+          (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x),
         );
         largestDoubleArea = Math.max(largestDoubleArea, doubleArea);
       }
@@ -172,7 +171,10 @@ export function fitContainRect(
     return { x: 0, y: 0, width: 0, height: 0, scale: 0 };
   }
 
-  const scale = Math.min(stage.width / image.width, stage.height / image.height);
+  const scale = Math.min(
+    stage.width / image.width,
+    stage.height / image.height,
+  );
   const width = image.width * scale;
   const height = image.height * scale;
 
@@ -275,14 +277,7 @@ const cleanNumber = (value: number) => {
 };
 
 export function matrixToCss(matrix: CssMatrix): string {
-  return `matrix(${[
-    matrix.a,
-    matrix.b,
-    matrix.c,
-    matrix.d,
-    matrix.e,
-    matrix.f,
-  ]
+  return `matrix(${[matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f]
     .map(cleanNumber)
     .join(', ')})`;
 }

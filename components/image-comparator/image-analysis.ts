@@ -75,7 +75,8 @@ const waitForImage = (url: string) =>
     const image = new Image();
     image.decoding = 'async';
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Bild konnte nicht dekodiert werden.'));
+    image.onerror = () =>
+      reject(new Error('Bild konnte nicht dekodiert werden.'));
     image.src = url;
   });
 
@@ -86,7 +87,10 @@ export async function decodeGrayImage(
   const image = await waitForImage(url);
   const sourceWidth = image.naturalWidth;
   const sourceHeight = image.naturalHeight;
-  const downscale = Math.min(1, maximumSide / Math.max(sourceWidth, sourceHeight));
+  const downscale = Math.min(
+    1,
+    maximumSide / Math.max(sourceWidth, sourceHeight),
+  );
   const width = Math.max(1, Math.round(sourceWidth * downscale));
   const height = Math.max(1, Math.round(sourceHeight * downscale));
   const canvas = document.createElement('canvas');
@@ -95,7 +99,9 @@ export async function decodeGrayImage(
   const context = canvas.getContext('2d', { willReadFrequently: true });
 
   if (!context) {
-    throw new Error('Lokale Bildanalyse ist in diesem Browser nicht verfügbar.');
+    throw new Error(
+      'Lokale Bildanalyse ist in diesem Browser nicht verfügbar.',
+    );
   }
 
   context.drawImage(image, 0, 0, width, height);
@@ -255,7 +261,8 @@ export function detectFeatures(image: GrayImage): FeaturePoint[] {
   }
 
   positiveResponses.sort((left, right) => left - right);
-  const threshold = positiveResponses[Math.floor(positiveResponses.length * 0.85)];
+  const threshold =
+    positiveResponses[Math.floor(positiveResponses.length * 0.85)];
   const candidates: Array<{ x: number; y: number; score: number }> = [];
 
   for (let y = PATCH_RADIUS; y < image.height - PATCH_RADIUS; y += 1) {
@@ -346,7 +353,10 @@ function nearestDescriptors(
     let bestIndex = -1;
 
     candidates.forEach((candidate, index) => {
-      const distance = descriptorDistance(feature.descriptor, candidate.descriptor);
+      const distance = descriptorDistance(
+        feature.descriptor,
+        candidate.descriptor,
+      );
       if (distance < best) {
         second = best;
         best = distance;
@@ -416,8 +426,7 @@ function twoPointSimilarity(
   }
 
   const scale = targetLength / sourceLength;
-  const rotation =
-    Math.atan2(targetY, targetX) - Math.atan2(sourceY, sourceX);
+  const rotation = Math.atan2(targetY, targetX) - Math.atan2(sourceY, sourceX);
   if (
     scale < MIN_SCALE ||
     scale > MAX_SCALE ||
@@ -442,10 +451,7 @@ function twoPointSimilarity(
 
 function residual(match: FeatureMatch, transform: SimilarityTransform): number {
   const point = applySimilarity(match.target, transform);
-  return Math.hypot(
-    point.x - match.reference.x,
-    point.y - match.reference.y,
-  );
+  return Math.hypot(point.x - match.reference.x, point.y - match.reference.y);
 }
 
 function chooseAnchors(

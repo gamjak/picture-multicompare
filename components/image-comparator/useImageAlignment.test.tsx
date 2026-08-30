@@ -172,10 +172,12 @@ describe('useImageAlignment', () => {
   });
 
   it('creates a manual alignment from three paired normalized points', async () => {
-    const analyze = vi.fn(async (): Promise<AlignmentResult> => ({
-      status: 'failed',
-      reason: 'ambiguous',
-    }));
+    const analyze = vi.fn(
+      async (): Promise<AlignmentResult> => ({
+        status: 'failed',
+        reason: 'ambiguous',
+      }),
+    );
     const { result } = renderHook(() =>
       useImageAlignment({ images, enabled: true, metricsById, analyze }),
     );
@@ -213,10 +215,12 @@ describe('useImageAlignment', () => {
   });
 
   it('rejects clustered manual points without replacing the safe fallback', async () => {
-    const analyze = vi.fn(async (): Promise<AlignmentResult> => ({
-      status: 'failed',
-      reason: 'ambiguous',
-    }));
+    const analyze = vi.fn(
+      async (): Promise<AlignmentResult> => ({
+        status: 'failed',
+        reason: 'ambiguous',
+      }),
+    );
     const { result } = renderHook(() =>
       useImageAlignment({ images, enabled: true, metricsById, analyze }),
     );

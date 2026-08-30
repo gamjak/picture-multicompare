@@ -120,6 +120,11 @@ export function ComparisonStage({
     '--divider-y': dividerY + '%',
   };
   const referenceMetrics = referenceId ? metricsById[referenceId] : undefined;
+  const manualImageId = manualSession
+    ? manualSession.phase === 'reference'
+      ? referenceId
+      : manualSession.targetId
+    : null;
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -408,7 +413,13 @@ export function ComparisonStage({
           <div
             className="comparison-layer"
             key={image.id}
-            style={{ clipPath: clips[index] }}
+            style={{
+              clipPath: manualSession
+                ? image.id === manualImageId
+                  ? 'inset(0)'
+                  : 'inset(0 100% 100% 0)'
+                : clips[index],
+            }}
           >
             <div
               className="comparison-zoom"
@@ -456,7 +467,7 @@ export function ComparisonStage({
         </p>
       ) : null}
 
-      {orderedImages.length >= 2 ? (
+      {orderedImages.length >= 2 && !manualSession ? (
         <>
           <span
             className={[
@@ -494,15 +505,17 @@ export function ComparisonStage({
       ) : null}
 
       {showLabels
-        ? orderedImages.map((image) => (
-            <span
-              className={'comparison-label comparison-label--' + image.slot}
-              key={'label-' + image.id}
-            >
-              <strong>{image.slot}</strong>
-              <span>{image.name}</span>
-            </span>
-          ))
+        ? orderedImages
+            .filter((image) => !manualSession || image.id === manualImageId)
+            .map((image) => (
+              <span
+                className={'comparison-label comparison-label--' + image.slot}
+                key={'label-' + image.id}
+              >
+                <strong>{image.slot}</strong>
+                <span>{image.name}</span>
+              </span>
+            ))
         : null}
     </div>
   );

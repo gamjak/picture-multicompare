@@ -273,6 +273,71 @@ describe('ComparisonStage', () => {
     expect(onManualPoint).toHaveBeenCalledWith('A', { x: 0.25, y: 0.25 });
   });
 
+  it('shows only the image currently being marked during manual alignment', () => {
+    mockStageRect();
+    const props = {
+      images: images.slice(0, 2),
+      point: { x: 50, y: 50 },
+      zoom: 100,
+      showLabels: true,
+      alignmentEnabled: true,
+      referenceId: 'A',
+      entriesByImageId: {},
+      metricsById,
+      onPointChange: vi.fn(),
+      onDecodeError: vi.fn(),
+    };
+    const { rerender } = render(
+      <ComparisonStage
+        {...props}
+        manualSession={{
+          targetId: 'B',
+          phase: 'reference',
+          referencePoints: [],
+          targetPoints: [],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByTestId('alignment-A').closest('.comparison-layer'),
+    ).toHaveStyle({
+      clipPath: 'inset(0)',
+    });
+    expect(
+      screen.getByTestId('alignment-B').closest('.comparison-layer'),
+    ).toHaveStyle({
+      clipPath: 'inset(0 100% 100% 0)',
+    });
+
+    rerender(
+      <ComparisonStage
+        {...props}
+        manualSession={{
+          targetId: 'B',
+          phase: 'target',
+          referencePoints: [
+            { x: 0.1, y: 0.1 },
+            { x: 0.8, y: 0.15 },
+            { x: 0.2, y: 0.8 },
+          ],
+          targetPoints: [],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByTestId('alignment-A').closest('.comparison-layer'),
+    ).toHaveStyle({
+      clipPath: 'inset(0 100% 100% 0)',
+    });
+    expect(
+      screen.getByTestId('alignment-B').closest('.comparison-layer'),
+    ).toHaveStyle({
+      clipPath: 'inset(0)',
+    });
+  });
+
   it('shows three numbered reference and target marker pairs on request', async () => {
     mockStageRect();
     render(

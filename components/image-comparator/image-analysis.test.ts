@@ -108,20 +108,7 @@ const transformedFixture = (
 describe('local image feature analysis', () => {
   it('converts RGBA pixels to normalized perceptual luminance', () => {
     const gray = rgbaToGray(
-      new Uint8ClampedArray([
-        255,
-        0,
-        0,
-        255,
-        0,
-        255,
-        0,
-        255,
-        0,
-        0,
-        255,
-        255,
-      ]),
+      new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255]),
     );
 
     expect([...gray]).toEqual([
@@ -161,10 +148,7 @@ describe('local image feature analysis', () => {
       expect(result.anchors).toHaveLength(3);
       expect(result.confidence).toBeGreaterThanOrEqual(0.62);
       expect(result.transform.scale).toBeCloseTo(0.9804, 1);
-      expect(result.transform.rotation).toBeCloseTo(
-        (-3 * Math.PI) / 180,
-        1,
-      );
+      expect(result.transform.rotation).toBeCloseTo((-3 * Math.PI) / 180, 1);
       expect(result.transform.translateX).toBeCloseTo(-4.69, 0);
       expect(result.transform.translateY).toBeCloseTo(4.17, 0);
     }

@@ -12,6 +12,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 
+import { AlignmentControls } from './AlignmentControls';
 import { ComparisonStage } from './ComparisonStage';
 import {
   admitImageFiles,
@@ -21,10 +22,25 @@ import {
   swapSlots,
 } from './files';
 import { ImageTray } from './ImageTray';
+import type { AlignmentResult } from './image-analysis';
 import { Toolbar } from './Toolbar';
-import type { ImageItem, IntakeResult, Point, SlotId } from './types';
+import type {
+  ImageItem,
+  ImageMetrics,
+  IntakeResult,
+  Point,
+  SlotId,
+} from './types';
+import { useImageAlignment } from './useImageAlignment';
 
 const INITIAL_POINT: Point = { x: 50, y: 50 };
+
+type ImageComparatorProps = {
+  analyzePair?: (
+    referenceUrl: string,
+    targetUrl: string,
+  ) => Promise<AlignmentResult>;
+};
 
 function intakeMessage(result: IntakeResult): string {
   const parts: string[] = [];
@@ -52,11 +68,16 @@ function intakeMessage(result: IntakeResult): string {
   return parts.join(' ');
 }
 
-export function ImageComparator() {
+export function ImageComparator({ analyzePair }: ImageComparatorProps = {}) {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [point, setPoint] = useState<Point>(INITIAL_POINT);
   const [zoom, setZoom] = useState(100);
   const [showLabels, setShowLabels] = useState(true);
+  const [alignmentEnabled, setAlignmentEnabled] = useState(true);
+  const [showAlignmentPoints, setShowAlignmentPoints] = useState(false);
+  const [metricsById, setMetricsById] = useState<Record<string, ImageMetrics>>(
+    {},
+  );
   const [liveMessage, setLiveMessage] = useState('');
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +85,12 @@ export function ImageComparator() {
   const liveUrls = useRef(new Set<string>());
   const canFullscreen =
     typeof document !== 'undefined' && document.fullscreenEnabled;
+  const alignment = useImageAlignment({
+    images,
+    enabled: alignmentEnabled,
+    metricsById,
+    analyze: analyzePair,
+  });
 
   const revokeUrl = (url: string) => {
     if (!liveUrls.current.has(url)) {
@@ -139,6 +166,10 @@ export function ImageComparator() {
     setPoint(INITIAL_POINT);
     setZoom(100);
     setShowLabels(true);
+    setAlignmentEnabled(true);
+    setShowAlignmentPoints(false);
+    alignment.cancelManual();
+    alignment.reanalyze();
     setImages((current) =>
       current.map((image, index) => ({
         ...image,
@@ -226,7 +257,7 @@ export function ImageComparator() {
           <p>
             {images.length === 0
               ? 'Lege Varianten deckungsgleich übereinander und verschiebe den Trenner genau dorthin, wo du Unterschiede prüfen möchtest.'
-              : 'Alle Ebenen sind gleich skaliert und zentriert. Verschiebe den Trenner per Maus, Touch oder Pfeiltasten.'}
+              : 'Alle Ebenen sind gleich skaliert und zentriert. Die lokale Ausrichtung gleicht kleine Verschiebungen, Drehungen und Größenunterschiede aus.'}
           </p>
         </div>
 
@@ -276,14 +307,66 @@ export function ImageComparator() {
               onToggleLabels={() => setShowLabels((current) => !current)}
               onFullscreen={openFullscreen}
             />
+            <AlignmentControls
+              images={images}
+              enabled={alignmentEnabled}
+              showPoints={showAlignmentPoints}
+              referenceId={alignment.referenceId}
+              entriesByImageId={alignment.entriesByImageId}
+              manualSession={alignment.manualSession}
+              onEnabledChange={(enabled) => {
+                setAlignmentEnabled(enabled);
+                if (!enabled) {
+                  setShowAlignmentPoints(false);
+                  alignment.cancelManual();
+                }
+              }}
+              onShowPointsChange={setShowAlignmentPoints}
+              onReanalyze={(targetId) => alignment.reanalyze(targetId)}
+              onBeginManual={(targetId) => {
+                setShowAlignmentPoints(false);
+                alignment.beginManual(targetId);
+              }}
+              onUndoManual={alignment.undoManualPoint}
+              onCancelManual={alignment.cancelManual}
+              onApplyManual={() => {
+                const applied = alignment.applyManual();
+                if (applied) {
+                  setLiveMessage(
+                    'Die manuelle Drei-Punkt-Ausrichtung wurde angewendet.',
+                  );
+                }
+                return applied;
+              }}
+            />
             <div className="workspace-grid">
               <ComparisonStage
                 images={images}
                 point={point}
                 zoom={zoom}
                 showLabels={showLabels}
+                alignmentEnabled={alignmentEnabled}
+                showAlignmentPoints={showAlignmentPoints}
+                referenceId={alignment.referenceId}
+                entriesByImageId={alignment.entriesByImageId}
+                metricsById={metricsById}
+                manualSession={alignment.manualSession}
                 onPointChange={setPoint}
                 onDecodeError={handleDecodeError}
+                onImageMetrics={(imageId, metrics) =>
+                  setMetricsById((current) => {
+                    const previous = current[imageId];
+                    if (
+                      previous?.width === metrics.width &&
+                      previous.height === metrics.height
+                    ) {
+                      return current;
+                    }
+                    return { ...current, [imageId]: metrics };
+                  })
+                }
+                onManualPoint={alignment.recordManualPoint}
+                onCancelManual={alignment.cancelManual}
               />
               <ImageTray
                 images={images}
