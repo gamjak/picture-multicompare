@@ -73,6 +73,26 @@ export function useImageAlignment({
   const [retryVersion, setRetryVersion] = useState(0);
   const [manualSession, setManualSession] =
     useState<ManualAlignmentSession | null>(null);
+  const targetById = useMemo(
+    () => new Map(targets.map((target) => [target.id, target])),
+    [targets],
+  );
+  const visibleEntriesByImageId = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(entriesByImageId).filter(([targetId, entry]) => {
+          const target = targetById.get(targetId);
+          return Boolean(
+            reference && target && entryMatchesPair(entry, reference, target),
+          );
+        }),
+      ),
+    [entriesByImageId, reference, targetById],
+  );
+  const visibleManualSession =
+    manualSession && reference && targetById.has(manualSession.targetId)
+      ? manualSession
+      : null;
 
   const updateEntries = useCallback(
     (update: (current: EntryMap) => EntryMap) => {
@@ -89,26 +109,6 @@ export function useImageAlignment({
     const generation = generationRef.current + 1;
     generationRef.current = generation;
     let cancelled = false;
-    const currentTargets = new Map(targets.map((target) => [target.id, target]));
-
-    updateEntries((current) =>
-      Object.fromEntries(
-        Object.entries(current).filter(([targetId, entry]) => {
-          const target = currentTargets.get(targetId);
-          return Boolean(reference && target && entryMatchesPair(entry, reference, target));
-        }),
-      ),
-    );
-    setManualSession((current) => {
-      if (
-        !current ||
-        !reference ||
-        !currentTargets.has(current.targetId)
-      ) {
-        return null;
-      }
-      return current;
-    });
 
     if (!enabled || !reference || targets.length === 0) {
       return () => {
@@ -117,6 +117,7 @@ export function useImageAlignment({
     }
 
     const run = async () => {
+      await Promise.resolve();
       for (const target of targets) {
         if (cancelled || generationRef.current !== generation) {
           return;
@@ -131,16 +132,27 @@ export function useImageAlignment({
           continue;
         }
 
-        updateEntries((current) => ({
-          ...current,
-          [target.id]: {
-            status: 'analyzing',
-            referenceId: reference.id,
-            referenceUrl: reference.url,
-            targetId: target.id,
-            targetUrl: target.url,
-          },
-        }));
+        updateEntries((current) => {
+          const validEntries = Object.fromEntries(
+            Object.entries(current).filter(([targetId, entry]) => {
+              const currentTarget = targetById.get(targetId);
+              return Boolean(
+                currentTarget &&
+                  entryMatchesPair(entry, reference, currentTarget),
+              );
+            }),
+          );
+          return {
+            ...validEntries,
+            [target.id]: {
+              status: 'analyzing',
+              referenceId: reference.id,
+              referenceUrl: reference.url,
+              targetId: target.id,
+              targetUrl: target.url,
+            },
+          };
+        });
 
         let result: AlignmentResult;
         try {
@@ -187,7 +199,16 @@ export function useImageAlignment({
     return () => {
       cancelled = true;
     };
-  }, [analyze, enabled, retryVersion, signature, targets, reference, updateEntries]);
+  }, [
+    analyze,
+    enabled,
+    retryVersion,
+    signature,
+    targets,
+    reference,
+    targetById,
+    updateEntries,
+  ]);
 
   const reanalyze = useCallback(
     (targetId?: string) => {
@@ -287,10 +308,16 @@ export function useImageAlignment({
   const cancelManual = useCallback(() => setManualSession(null), []);
 
   const applyManual = useCallback(() => {
-    if (!manualSession || !reference || manualSession.phase !== 'ready') {
+    if (
+      !visibleManualSession ||
+      !reference ||
+      visibleManualSession.phase !== 'ready'
+    ) {
       return false;
     }
-    const target = targets.find((image) => image.id === manualSession.targetId);
+    const target = targets.find(
+      (image) => image.id === visibleManualSession.targetId,
+    );
     const referenceMetrics = metricsById[reference.id];
     const targetMetrics = target ? metricsById[target.id] : undefined;
 
@@ -302,8 +329,8 @@ export function useImageAlignment({
     }
 
     if (
-      triangleSpread(manualSession.referencePoints) < 0.01 ||
-      triangleSpread(manualSession.targetPoints) < 0.01
+      triangleSpread(visibleManualSession.referencePoints) < 0.01 ||
+      triangleSpread(visibleManualSession.targetPoints) < 0.01
     ) {
       setManualSession((current) =>
         current ? { ...current, error: 'spread' } : current,
@@ -311,11 +338,11 @@ export function useImageAlignment({
       return false;
     }
 
-    const referencePoints = manualSession.referencePoints.map((point) => ({
+    const referencePoints = visibleManualSession.referencePoints.map((point) => ({
       x: point.x * referenceMetrics.width,
       y: point.y * referenceMetrics.height,
     }));
-    const targetPoints = manualSession.targetPoints.map((point) => ({
+    const targetPoints = visibleManualSession.targetPoints.map((point) => ({
       x: point.x * targetMetrics.width,
       y: point.y * targetMetrics.height,
     }));
@@ -338,9 +365,9 @@ export function useImageAlignment({
         targetId: target.id,
         targetUrl: target.url,
         transform,
-        anchors: manualSession.referencePoints.map((point, index) => ({
+        anchors: visibleManualSession.referencePoints.map((point, index) => ({
           reference: point,
-          target: manualSession.targetPoints[index],
+          target: visibleManualSession.targetPoints[index],
         })),
         confidence: 1,
         rmsError: 0,
@@ -348,18 +375,24 @@ export function useImageAlignment({
     }));
     setManualSession(null);
     return true;
-  }, [manualSession, metricsById, reference, targets, updateEntries]);
+  }, [
+    visibleManualSession,
+    metricsById,
+    reference,
+    targets,
+    updateEntries,
+  ]);
 
   const isApplied = useCallback(
     (imageId: string) =>
-      enabled && entriesByImageId[imageId]?.status === 'aligned',
-    [enabled, entriesByImageId],
+      enabled && visibleEntriesByImageId[imageId]?.status === 'aligned',
+    [enabled, visibleEntriesByImageId],
   );
 
   return {
     referenceId: reference?.id ?? null,
-    entriesByImageId,
-    manualSession,
+    entriesByImageId: visibleEntriesByImageId,
+    manualSession: visibleManualSession,
     isApplied,
     reanalyze,
     beginManual,

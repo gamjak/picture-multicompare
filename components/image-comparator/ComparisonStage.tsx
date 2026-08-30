@@ -7,25 +7,81 @@ import type {
   KeyboardEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { clipPathsFor, movePointByKey, pointFromClient } from './geometry';
+import {
+  applyMatrix,
+  displayMatrixFor,
+  fitContainRect,
+  IDENTITY_MATRIX,
+  invertMatrix,
+  matrixToCss,
+} from './alignment';
 import { SLOT_IDS } from './files';
-import type { ImageItem, Point } from './types';
+import { clipPathsFor, movePointByKey, pointFromClient } from './geometry';
+import type {
+  AlignmentEntry,
+  CssMatrix,
+  ImageItem,
+  ImageMetrics,
+  ManualAlignmentSession,
+  NormalizedPoint,
+  Point,
+  StageSize,
+} from './types';
 
 type ComparisonStageProps = {
   images: ImageItem[];
   point: Point;
   zoom: number;
   showLabels: boolean;
+  alignmentEnabled?: boolean;
+  showAlignmentPoints?: boolean;
+  referenceId?: string | null;
+  entriesByImageId?: Record<string, AlignmentEntry>;
+  metricsById?: Record<string, ImageMetrics>;
+  manualSession?: ManualAlignmentSession | null;
   onPointChange: (point: Point) => void;
   onDecodeError: (image: ImageItem) => void;
+  onImageMetrics?: (imageId: string, metrics: ImageMetrics) => void;
+  onManualPoint?: (imageId: string, point: NormalizedPoint) => void;
+  onCancelManual?: () => void;
 };
 
 type StageStyle = CSSProperties & {
   '--divider-x': string;
   '--divider-y': string;
-  '--image-zoom': number;
+};
+
+type Marker = {
+  key: string;
+  label: string;
+  kind: 'reference' | 'target';
+  number: number;
+  point: Point;
+};
+
+const EMPTY_ENTRIES: Record<string, AlignmentEntry> = {};
+const EMPTY_METRICS: Record<string, ImageMetrics> = {};
+
+const zoomPoint = (point: Point, size: StageSize, zoom: number): Point => {
+  const scale = zoom / 100;
+  const centerX = size.width / 2;
+  const centerY = size.height / 2;
+  return {
+    x: centerX + (point.x - centerX) * scale,
+    y: centerY + (point.y - centerY) * scale,
+  };
+};
+
+const unzoomPoint = (point: Point, size: StageSize, zoom: number): Point => {
+  const scale = zoom / 100;
+  const centerX = size.width / 2;
+  const centerY = size.height / 2;
+  return {
+    x: centerX + (point.x - centerX) / scale,
+    y: centerY + (point.y - centerY) / scale,
+  };
 };
 
 export function ComparisonStage({
@@ -33,10 +89,23 @@ export function ComparisonStage({
   point,
   zoom,
   showLabels,
+  alignmentEnabled = false,
+  showAlignmentPoints = false,
+  referenceId = null,
+  entriesByImageId = EMPTY_ENTRIES,
+  metricsById = EMPTY_METRICS,
+  manualSession = null,
   onPointChange,
   onDecodeError,
+  onImageMetrics,
+  onManualPoint,
+  onCancelManual,
 }: ComparisonStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState<StageSize>({
+    width: 0,
+    height: 0,
+  });
   const orderedImages = useMemo(
     () =>
       [...images].sort(
@@ -49,10 +118,218 @@ export function ComparisonStage({
   const stageStyle: StageStyle = {
     '--divider-x': point.x + '%',
     '--divider-y': dividerY + '%',
-    '--image-zoom': zoom / 100,
+  };
+  const referenceMetrics = referenceId ? metricsById[referenceId] : undefined;
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) {
+      return;
+    }
+
+    const measure = () => {
+      const rect = stage.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) {
+        return;
+      }
+      setStageSize((current) =>
+        current.width === rect.width && current.height === rect.height
+          ? current
+          : { width: rect.width, height: rect.height },
+      );
+    };
+
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(measure);
+      observer.observe(stage);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  useEffect(() => {
+    if (!manualSession || !onCancelManual) {
+      return;
+    }
+
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancelManual();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [manualSession, onCancelManual]);
+
+  const matrixForImage = (
+    imageId: string,
+    size: StageSize = stageSize,
+  ): CssMatrix => {
+    if (
+      !alignmentEnabled ||
+      imageId === referenceId ||
+      !referenceMetrics ||
+      size.width <= 0 ||
+      size.height <= 0
+    ) {
+      return IDENTITY_MATRIX;
+    }
+
+    const entry = entriesByImageId[imageId];
+    const targetMetrics = metricsById[imageId];
+    if (entry?.status !== 'aligned' || !targetMetrics) {
+      return IDENTITY_MATRIX;
+    }
+
+    return displayMatrixFor(
+      entry.transform,
+      targetMetrics,
+      referenceMetrics,
+      size,
+    );
+  };
+
+  const displayedPoint = (
+    imageId: string,
+    normalized: NormalizedPoint,
+    size: StageSize = stageSize,
+  ): Point | null => {
+    const metrics = metricsById[imageId];
+    if (!metrics || size.width <= 0 || size.height <= 0) {
+      return null;
+    }
+    const fit = fitContainRect(metrics, size);
+    const baseline = {
+      x: fit.x + normalized.x * fit.width,
+      y: fit.y + normalized.y * fit.height,
+    };
+    return zoomPoint(
+      applyMatrix(baseline, matrixForImage(imageId, size)),
+      size,
+      zoom,
+    );
+  };
+
+  const markers: Marker[] = [];
+  if (showAlignmentPoints && referenceId) {
+    for (const image of orderedImages) {
+      const entry = entriesByImageId[image.id];
+      if (entry?.status !== 'aligned') {
+        continue;
+      }
+      entry.anchors.forEach((anchor, index) => {
+        const referencePoint = displayedPoint(referenceId, anchor.reference);
+        const targetPoint = displayedPoint(image.id, anchor.target);
+        if (referencePoint) {
+          markers.push({
+            key: `${image.id}-reference-${index}`,
+            label: `Referenzpunkt ${index + 1} für Bild ${image.slot}`,
+            kind: 'reference',
+            number: index + 1,
+            point: referencePoint,
+          });
+        }
+        if (targetPoint) {
+          markers.push({
+            key: `${image.id}-target-${index}`,
+            label: `Zielpunkt ${index + 1} für Bild ${image.slot}`,
+            kind: 'target',
+            number: index + 1,
+            point: targetPoint,
+          });
+        }
+      });
+    }
+  }
+
+  if (manualSession && referenceId) {
+    manualSession.referencePoints.forEach((manualPoint, index) => {
+      const markerPoint = displayedPoint(referenceId, manualPoint);
+      if (markerPoint) {
+        markers.push({
+          key: `manual-reference-${index}`,
+          label: `Manueller Referenzpunkt ${index + 1}`,
+          kind: 'reference',
+          number: index + 1,
+          point: markerPoint,
+        });
+      }
+    });
+    manualSession.targetPoints.forEach((manualPoint, index) => {
+      const markerPoint = displayedPoint(manualSession.targetId, manualPoint);
+      if (markerPoint) {
+        markers.push({
+          key: `manual-target-${index}`,
+          label: `Manueller Zielpunkt ${index + 1}`,
+          kind: 'target',
+          number: index + 1,
+          point: markerPoint,
+        });
+      }
+    });
+  }
+
+  const recordManualPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (
+      !manualSession ||
+      manualSession.phase === 'ready' ||
+      !referenceId ||
+      !stageRef.current ||
+      !onManualPoint
+    ) {
+      return;
+    }
+
+    const imageId =
+      manualSession.phase === 'reference'
+        ? referenceId
+        : manualSession.targetId;
+    const metrics = metricsById[imageId];
+    if (!metrics) {
+      return;
+    }
+
+    const rect = stageRef.current.getBoundingClientRect();
+    const size = { width: rect.width, height: rect.height };
+    if (size.width <= 0 || size.height <= 0) {
+      return;
+    }
+    const localPoint = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+    const unzoomed = unzoomPoint(localPoint, size, zoom);
+    const inverseAlignment = invertMatrix(matrixForImage(imageId, size));
+    if (!inverseAlignment) {
+      return;
+    }
+    const baseline = applyMatrix(unzoomed, inverseAlignment);
+    const fit = fitContainRect(metrics, size);
+    const normalized = {
+      x: (baseline.x - fit.x) / fit.width,
+      y: (baseline.y - fit.y) / fit.height,
+    };
+    if (
+      normalized.x < 0 ||
+      normalized.x > 1 ||
+      normalized.y < 0 ||
+      normalized.y > 1
+    ) {
+      return;
+    }
+
+    onManualPoint(imageId, normalized);
   };
 
   const updateFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (manualSession) {
+      recordManualPoint(event);
+      return;
+    }
     if (orderedImages.length < 2 || !stageRef.current) {
       return;
     }
@@ -69,6 +346,10 @@ export function ComparisonStage({
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (manualSession) {
+      recordManualPoint(event);
+      return;
+    }
     if (orderedImages.length < 2) {
       return;
     }
@@ -78,6 +359,9 @@ export function ComparisonStage({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (manualSession) {
+      return;
+    }
     if (
       event.currentTarget.hasPointerCapture?.(event.pointerId) ||
       event.buttons === 1
@@ -112,7 +396,8 @@ export function ComparisonStage({
       ref={stageRef}
       className="comparison-stage"
       data-image-count={orderedImages.length}
-      data-interactive={orderedImages.length >= 2}
+      data-interactive={orderedImages.length >= 2 && !manualSession}
+      data-manual={Boolean(manualSession)}
       style={stageStyle}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -125,16 +410,45 @@ export function ComparisonStage({
             key={image.id}
             style={{ clipPath: clips[index] }}
           >
-            <img
-              className="comparison-image"
-              src={image.url}
-              alt={'Vergleichsbild ' + image.slot + ': ' + image.name}
-              draggable={false}
-              onError={() => onDecodeError(image)}
-            />
+            <div
+              className="comparison-zoom"
+              style={{ transform: `scale(${zoom / 100})` }}
+            >
+              <div
+                className="comparison-alignment"
+                data-testid={`alignment-${image.id}`}
+                style={{ transform: matrixToCss(matrixForImage(image.id)) }}
+              >
+                <img
+                  className="comparison-image"
+                  src={image.url}
+                  alt={'Vergleichsbild ' + image.slot + ': ' + image.name}
+                  draggable={false}
+                  onLoad={(event) => {
+                    const width = event.currentTarget.naturalWidth;
+                    const height = event.currentTarget.naturalHeight;
+                    if (width > 0 && height > 0) {
+                      onImageMetrics?.(image.id, { width, height });
+                    }
+                  }}
+                  onError={() => onDecodeError(image)}
+                />
+              </div>
+            </div>
           </div>
         ))}
       </div>
+
+      {markers.map((marker) => (
+        <span
+          key={marker.key}
+          className={`alignment-marker alignment-marker--${marker.kind}`}
+          style={{ left: marker.point.x, top: marker.point.y }}
+          aria-label={marker.label}
+        >
+          {marker.number}
+        </span>
+      ))}
 
       {orderedImages.length === 1 ? (
         <p className="comparison-hint">
@@ -163,6 +477,7 @@ export function ComparisonStage({
           <button
             type="button"
             className="divider-handle"
+            disabled={Boolean(manualSession)}
             aria-label={
               'Trennpunkt, ' +
               Math.round(point.x) +
