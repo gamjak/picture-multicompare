@@ -1,5 +1,7 @@
 # Picture MultiCompare
 
+[Picture MultiCompare direkt im Browser öffnen](https://gamjak.github.io/picture-multicompare-pages/)
+
 Picture MultiCompare vergleicht zwei bis zwölf lokale Bilder gleichzeitig im
 Browser. Die Bilddateien werden weder hochgeladen noch gespeichert.
 
